@@ -30,7 +30,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import net.fabricmc.loader.impl.launch.FabricLauncher;
+import net.fabricmc.api.EnvType;
 
 public abstract class GamePatch {
 	protected static ClassNode readClass(ClassReader reader) {
@@ -128,5 +128,5 @@ public abstract class GamePatch {
 		return ((access & 0x0F) == (Opcodes.ACC_PUBLIC | 0 /* non-static */));
 	}
 
-	public abstract void process(FabricLauncher launcher, Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter);
+	public abstract void process(Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter, EnvType type, String entrypoint);
 }

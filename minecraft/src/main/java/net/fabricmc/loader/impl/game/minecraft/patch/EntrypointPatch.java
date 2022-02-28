@@ -37,7 +37,6 @@ import org.objectweb.asm.tree.VarInsnNode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.impl.game.minecraft.Hooks;
 import net.fabricmc.loader.impl.game.patch.GamePatch;
-import net.fabricmc.loader.impl.launch.FabricLauncher;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 
@@ -48,10 +47,7 @@ public class EntrypointPatch extends GamePatch {
 	}
 
 	@Override
-	public void process(FabricLauncher launcher, Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter) {
-		EnvType type = launcher.getEnvironmentType();
-		String entrypoint = launcher.getEntrypoint();
-
+	public void process(Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter, EnvType type, String entrypoint) {
 		if (!entrypoint.startsWith("net.minecraft.") && !entrypoint.startsWith("com.mojang.")) {
 			return;
 		}

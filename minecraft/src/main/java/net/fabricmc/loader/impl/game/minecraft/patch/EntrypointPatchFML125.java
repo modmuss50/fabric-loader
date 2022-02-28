@@ -24,9 +24,8 @@ import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.tree.ClassNode;
 
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.impl.game.patch.GamePatch;
-import net.fabricmc.loader.impl.launch.FabricLauncher;
-import net.fabricmc.loader.impl.launch.knot.Knot;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 
@@ -37,13 +36,9 @@ public class EntrypointPatchFML125 extends GamePatch {
 	private static final String TO_INTERNAL = "cpw/mods/fml/common/ModClassLoader";
 
 	@Override
-	public void process(FabricLauncher launcher, Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter) {
+	public void process(Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter, EnvType type, String entrypoint) {
 		if (classSource.apply(TO) != null
 				&& classSource.apply("cpw.mods.fml.relauncher.FMLRelauncher") == null) {
-			if (!(launcher instanceof Knot)) {
-				throw new RuntimeException("1.2.5 FML patch only supported on Knot!");
-			}
-
 			Log.debug(LogCategory.GAME_PATCH, "Detected 1.2.5 FML - Knotifying ModClassLoader...");
 
 			ClassNode patchedClassLoader = readClass(classSource.apply(FROM));

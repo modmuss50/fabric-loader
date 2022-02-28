@@ -22,7 +22,9 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.Enumeration;
+import java.util.List;
 
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider;
@@ -90,7 +92,10 @@ public class ModClassLoader_125_FML extends URLClassLoader {
 	 * @return The "parent source" file.
 	 */
 	public File getParentSource() {
-		return ((MinecraftGameProvider) FabricLoaderImpl.INSTANCE.getGameProvider()).getGameJar().toFile();
+		List<Path> gameJars = ((MinecraftGameProvider) FabricLoaderImpl.INSTANCE.getGameProvider()).getGameJars();
+
+		assert gameJars.size() == 1;
+		return gameJars.get(0).toFile();
 	}
 
 	/**

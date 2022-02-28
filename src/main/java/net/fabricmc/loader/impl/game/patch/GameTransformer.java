@@ -32,7 +32,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.tree.ClassNode;
 
-import net.fabricmc.loader.impl.launch.FabricLauncher;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.impl.util.LoaderUtil;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -58,7 +58,7 @@ public class GameTransformer {
 		patchedClasses.put(key, writer.toByteArray());
 	}
 
-	public void locateEntrypoints(FabricLauncher launcher, Path gameJar) {
+	public void locateEntrypoints(Path gameJar, EnvType envType, String entrypoint) {
 		if (entrypointsLocated) {
 			return;
 		}
@@ -84,7 +84,7 @@ public class GameTransformer {
 			};
 
 			for (GamePatch patch : patches) {
-				patch.process(launcher, classSource, this::addPatchedClass);
+				patch.process(classSource, this::addPatchedClass, envType, entrypoint);
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException(String.format("error reading %s: %s", gameJar.toAbsolutePath(), e), e);
