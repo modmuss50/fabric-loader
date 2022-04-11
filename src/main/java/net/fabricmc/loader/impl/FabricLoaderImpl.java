@@ -43,6 +43,7 @@ import net.fabricmc.loader.api.MappingResolver;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.ObjectShare;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.discovery.ArgumentModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.ClasspathModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.DirectoryModCandidateFinder;
@@ -402,6 +403,12 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		return null;
 	}
 
+	public Collection<ModCandidateImpl> getModCandidates() {
+		if (modCandidates == null) return Collections.emptyList();
+
+		return modCandidates;
+	}
+
 	@Override
 	public Optional<net.fabricmc.loader.api.ModContainer> getModContainer(String id) {
 		return Optional.ofNullable(modMap.get(id));
@@ -431,8 +438,12 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		mods.add(container);
 		modMap.put(candidate.getId(), container);
 
-		for (String provides : candidate.getProvides()) {
-			modMap.put(provides, container);
+		for (ProvidedMod mod : candidate.getAdditionallyProvidedMods()) {
+			if (mod.isExclusive()) {
+				modMap.put(mod.getId(), container);
+			} else {
+				modMap.putIfAbsent(mod.getId(), container);
+			}
 		}
 	}
 
@@ -441,7 +452,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		for (ModContainerImpl mod : mods) {
 			// add language adapters
-			for (Map.Entry<String, String> laEntry : mod.getInfo().getLanguageAdapterDefinitions().entrySet()) {
+			for (Map.Entry<String, String> laEntry : mod.getMetadata().getLanguageAdapterDefinitions().entrySet()) {
 				if (adapterMap.containsKey(laEntry.getKey())) {
 					throw new RuntimeException("Duplicate language adapter key: " + laEntry.getKey() + "! (" + laEntry.getValue() + ", " + adapterMap.get(laEntry.getKey()).getClass().getName() + ")");
 				}
@@ -458,18 +469,18 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	private void setupMods() {
 		for (ModContainerImpl mod : mods) {
 			try {
-				for (String in : mod.getInfo().getOldInitializers()) {
-					String adapter = mod.getInfo().getOldStyleLanguageAdapter();
+				for (String in : mod.getMetadata().getOldInitializers()) {
+					String adapter = mod.getMetadata().getOldStyleLanguageAdapter();
 					entrypointStorage.addDeprecated(mod, adapter, in);
 				}
 
-				for (String key : mod.getInfo().getEntrypointKeys()) {
-					for (EntrypointMetadata in : mod.getInfo().getEntrypoints(key)) {
+				for (String key : mod.getMetadata().getEntrypointKeys()) {
+					for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(key)) {
 						entrypointStorage.add(mod, key, in, adapterMap);
 					}
 				}
 			} catch (Exception e) {
-				throw new RuntimeException(String.format("Failed to setup mod %s (%s)", mod.getInfo().getName(), mod.getOrigin()), e);
+				throw new RuntimeException(String.format("Failed to setup mod %s (%s)", mod.getMetadata().getName(), mod.getOrigin()), e);
 			}
 		}
 	}

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import org.sat4j.specs.TimeoutException;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModDependency.Kind;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.discovery.ModSolver.InactiveReason;
 import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.util.log.Log;
@@ -64,8 +66,8 @@ public class ModResolver {
 		for (ModCandidateImpl mod : allModsSorted) {
 			modsById.computeIfAbsent(mod.getId(), ignore -> new ArrayList<>()).add(mod);
 
-			for (String provided : mod.getProvides()) {
-				modsById.computeIfAbsent(provided, ignore -> new ArrayList<>()).add(mod);
+			for (ProvidedMod provided : mod.getAdditionallyProvidedMods()) {
+				modsById.computeIfAbsent(provided.getId(), ignore -> new ArrayList<>()).add(mod);
 			}
 		}
 
@@ -258,20 +260,55 @@ public class ModResolver {
 
 		allModsSorted.removeAll(modsById.remove(mod.getId()));
 
-		for (String provided : mod.getProvides()) {
-			allModsSorted.removeAll(modsById.remove(provided));
+		for (ProvidedMod provided : mod.getAdditionallyProvidedMods()) {
+			String id = provided.getId();
+
+			if (provided.isExclusive()) {
+				allModsSorted.removeAll(modsById.remove(id));
+			} else {
+				List<ModCandidateImpl> mods = modsById.get(id);
+				mods.remove(mod);
+				allModsSorted.remove(mod);
+
+				for (Iterator<ModCandidateImpl> it = mods.iterator(); it.hasNext(); ) {
+					ModCandidateImpl m = it.next();
+
+					if (!hasExclusiveId(m, id)) {
+						it.remove();
+						allModsSorted.remove(m);
+					}
+				}
+
+				if (mods.isEmpty()) modsById.remove(id);
+			}
 		}
 	}
 
 	static void selectMod(ModCandidateImpl mod, Map<String, ModCandidateImpl> selectedMods, List<ModCandidateImpl> uniqueSelectedMods) throws ModResolutionException {
 		ModCandidateImpl prev = selectedMods.put(mod.getId(), mod);
-		if (prev != null) throw new ModResolutionException("duplicate mod %s", mod.getId());
+		if (prev != null && hasExclusiveId(prev, mod.getId())) throw new ModResolutionException("duplicate mod %s", mod.getId());
 
-		for (String provided : mod.getProvides()) {
-			prev = selectedMods.put(provided, mod);
-			if (prev != null) throw new ModResolutionException("duplicate mod %s", provided);
+		for (ProvidedMod provided : mod.getAdditionallyProvidedMods()) {
+			String id = provided.getId();
+
+			if (provided.isExclusive()) {
+				prev = selectedMods.put(id, mod);
+				if (prev != null && hasExclusiveId(prev, id)) throw new ModResolutionException("duplicate provided mod %s", id);
+			} else {
+				prev = selectedMods.putIfAbsent(id, mod);
+			}
 		}
 
 		uniqueSelectedMods.add(mod);
+	}
+
+	static boolean hasExclusiveId(ModCandidateImpl mod, String id) {
+		if (mod.getId().equals(id)) return true;
+
+		for (ProvidedMod provided : mod.getAdditionallyProvidedMods()) {
+			if (provided.isExclusive() && provided.getId().equals(id)) return true;
+		}
+
+		return false;
 	}
 }

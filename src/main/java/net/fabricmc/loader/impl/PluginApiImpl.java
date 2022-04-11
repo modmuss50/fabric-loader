@@ -51,6 +51,13 @@ public final class PluginApiImpl implements LoaderPluginApi {
 	}
 
 	@Override
+	public ModCandidate createMod(Path path) {
+		Objects.requireNonNull(path, "null path");
+
+		return createMod(Collections.singletonList(path));
+	}
+
+	@Override
 	public ModCandidate createMod(List<Path> paths) {
 		checkFrozen();
 		if (paths.isEmpty()) throw new IllegalArgumentException("empty paths");
@@ -97,16 +104,14 @@ public final class PluginApiImpl implements LoaderPluginApi {
 		checkFrozen();
 		Objects.requireNonNull(modId, "null modId");
 
-		// TODO Auto-generated method stub
-		return null;
+		return FabricLoaderImpl.INSTANCE.getModCandidate(modId);
 	}
 
 	@Override
 	public Collection<ModCandidate> getMods() {
 		checkFrozen();
 
-		// TODO Auto-generated method stub
-		return null;
+		return Collections.unmodifiableCollection(FabricLoaderImpl.INSTANCE.getModCandidates());
 	}
 
 	@Override

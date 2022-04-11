@@ -16,7 +16,10 @@
 
 package net.fabricmc.loader.api.metadata;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -48,14 +51,29 @@ public interface ModMetadata {
 	 */
 	String getId();
 
+	@Deprecated
+	default Collection<String> getProvides() {
+		Collection<ProvidedMod> mods = getAdditionallyProvidedMods();
+		if (mods.isEmpty()) return Collections.emptyList();
+
+		List<String> ret = new ArrayList<>(mods.size());
+
+		for (ProvidedMod mod : mods) {
+			ret.add(mod.getId());
+		}
+
+		return ret;
+	}
+
 	/**
-	 * Returns the mod's ID provides.
+	 * Return mods additionally provided by this mod as declared by the {@code provides} directive.
 	 *
-	 * <p>The aliases follow the same rules as ID</p>
+	 * <p>This does not relate to nested (JIJ) mods, provided mods are supposed to be represented by this mod itself.
+	 * Typical implementations include offered APIs, emulation or compatibility layers.
 	 *
-	 * @return the mod's ID provides
+	 * @return additionally provided mods (excluding this mod)
 	 */
-	Collection<String> getProvides();
+	Collection<ProvidedMod> getAdditionallyProvidedMods();
 
 	/**
 	 * Returns the mod's version.

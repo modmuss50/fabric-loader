@@ -16,7 +16,10 @@
 
 package net.fabricmc.loader.api.metadata;
 
+import java.util.List;
 import java.util.Map;
+
+import net.fabricmc.loader.impl.metadata.CustomValueImpl;
 
 /**
  * Represents a custom value in the {@code fabric.mod.json}.
@@ -91,6 +94,15 @@ public interface CustomValue {
 		 * @return the value associated, or {@code null} if no such value is present
 		 */
 		CustomValue get(String key);
+
+		/**
+		 * Gets the value associated with a {@code key} within this object value or the default value if there is none.
+		 *
+		 * @param key the key to check
+		 * @param defaultValue the default value to return if there is no value for the key
+		 * @return the value associated, or {@code defaultValue} if no such value is present
+		 */
+		CustomValue getOrDefault(String key, CustomValue defaultValue);
 	}
 
 	/**
@@ -117,5 +129,29 @@ public interface CustomValue {
 	 */
 	enum CvType {
 		OBJECT, ARRAY, STRING, NUMBER, BOOLEAN, NULL;
+	}
+
+	static CvObject of(Map<String, CustomValue> map) {
+		return CustomValueImpl.of(map);
+	}
+
+	static CvArray of(List<CustomValue> list) {
+		return CustomValueImpl.of(list);
+	}
+
+	static CustomValue of(String value) {
+		return CustomValueImpl.of(value);
+	}
+
+	static CustomValue of(Number value) {
+		return CustomValueImpl.of(value);
+	}
+
+	static CustomValue of(boolean value) {
+		return CustomValueImpl.of(value);
+	}
+
+	static CustomValue ofNull() {
+		return CustomValueImpl.ofNull();
 	}
 }

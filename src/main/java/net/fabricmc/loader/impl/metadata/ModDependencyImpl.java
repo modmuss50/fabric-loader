@@ -29,14 +29,16 @@ import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 public final class ModDependencyImpl implements ModDependency {
 	private Kind kind;
 	private final String modId;
-	private final List<String> matcherStringList;
 	private final Collection<VersionPredicate> ranges;
 
 	public ModDependencyImpl(Kind kind, String modId, List<String> matcherStringList) throws VersionParsingException {
+		this(kind, modId, VersionPredicate.parse(matcherStringList));
+	}
+
+	public ModDependencyImpl(Kind kind, String modId, Collection<VersionPredicate> versionOptions) {
 		this.kind = kind;
 		this.modId = modId;
-		this.matcherStringList = matcherStringList;
-		this.ranges = VersionPredicate.parse(this.matcherStringList);
+		this.ranges = versionOptions;
 	}
 
 	@Override
@@ -86,12 +88,16 @@ public final class ModDependencyImpl implements ModDependency {
 		builder.append(this.modId);
 		builder.append(" @ [");
 
-		for (int i = 0; i < matcherStringList.size(); i++) {
-			if (i > 0) {
+		boolean first = true;
+
+		for (VersionPredicate range : ranges) {
+			if (first) {
+				first = false;
+			} else {
 				builder.append(" || ");
 			}
 
-			builder.append(matcherStringList.get(i));
+			builder.append(range);
 		}
 
 		builder.append("]}");

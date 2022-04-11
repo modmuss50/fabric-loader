@@ -18,6 +18,7 @@ package net.fabricmc.loader.impl.metadata;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -33,8 +34,16 @@ import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 import net.fabricmc.loader.impl.lib.gson.JsonToken;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.EntrypointMetadataImpl;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.IconEntry;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MapIconEntry;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MixinEntry;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.NestedJarEntryImpl;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.ProvidedModImpl;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.SingleIconEntry;
 import net.fabricmc.loader.impl.util.version.VersionParser;
 
 final class V1ModMetadataParser {
@@ -61,13 +70,11 @@ final class V1ModMetadataParser {
 		ModEnvironment environment = ModEnvironment.UNIVERSAL; // Default is always universal
 		Map<String, List<EntrypointMetadata>> entrypoints = new HashMap<>();
 		List<NestedJarEntry> jars = new ArrayList<>();
-		List<V1ModMetadata.MixinEntry> mixins = new ArrayList<>();
+		List<MixinEntry> mixins = new ArrayList<>();
 		String accessWidener = null;
 
 		// Optional (dependency resolution)
 		List<ModDependency> dependencies = new ArrayList<>();
-		// Happy little accidents
-		boolean hasRequires = false;
 
 		// Optional (metadata)
 		String name = null;
@@ -76,7 +83,7 @@ final class V1ModMetadataParser {
 		List<Person> contributors = new ArrayList<>();
 		ContactInformation contact = null;
 		List<String> license = new ArrayList<>();
-		V1ModMetadata.IconEntry icon = null;
+		IconEntry icon = null;
 
 		// Optional (language adapter providers)
 		Map<String, String> languageAdapters = new HashMap<>();
@@ -162,10 +169,6 @@ final class V1ModMetadataParser {
 			case "breaks":
 				readDependenciesContainer(reader, ModDependency.Kind.BREAKS, dependencies);
 				break;
-			case "requires":
-				hasRequires = true;
-				reader.skipValue();
-				break;
 			case "name":
 				if (reader.peek() != JsonToken.STRING) {
 					throw new ParseMetadataException("Mod name must be a string", reader);
@@ -222,10 +225,21 @@ final class V1ModMetadataParser {
 
 		ModMetadataParser.logWarningMessages(id, warnings);
 
-		return new V1ModMetadata(id, version, provides,
-				environment, entrypoints, jars, mixins, accessWidener,
-				dependencies, hasRequires,
-				name, description, authors, contributors, contact, license, icon, languageAdapters, customValues);
+		List<ProvidedMod> providedMods = new ArrayList<>(provides.size());
+
+		for (String mod : provides) {
+			providedMods.add(new ProvidedModImpl(mod, version, true));
+		}
+
+		return new ModMetadataImpl(1,
+				id, version, providedMods,
+				environment, entrypoints, jars,
+				mixins, accessWidener,
+				dependencies,
+				name, description, authors, contributors, contact, license, icon,
+				languageAdapters,
+				customValues,
+				Collections.emptyList());
 	}
 
 	private static void readProvides(JsonReader reader, List<String> provides) throws IOException, ParseMetadataException {
@@ -317,7 +331,7 @@ final class V1ModMetadataParser {
 					throw new ParseMetadataException.MissingField("Entrypoint value must be present");
 				}
 
-				metadata.add(new V1ModMetadata.EntrypointMetadataImpl(adapter, value));
+				metadata.add(new EntrypointMetadataImpl(adapter, value));
 			}
 
 			reader.endArray();
@@ -365,13 +379,13 @@ final class V1ModMetadataParser {
 				throw new ParseMetadataException("Missing mandatory key 'file' in JAR entry!", reader);
 			}
 
-			jars.add(new V1ModMetadata.JarEntry(file));
+			jars.add(new NestedJarEntryImpl(file));
 		}
 
 		reader.endArray();
 	}
 
-	private static void readMixinConfigs(List<ParseWarning> warnings, JsonReader reader, List<V1ModMetadata.MixinEntry> mixins) throws IOException, ParseMetadataException {
+	private static void readMixinConfigs(List<ParseWarning> warnings, JsonReader reader, List<MixinEntry> mixins) throws IOException, ParseMetadataException {
 		if (reader.peek() != JsonToken.BEGIN_ARRAY) {
 			throw new ParseMetadataException("Mixin configs must be in an array", reader);
 		}
@@ -382,7 +396,7 @@ final class V1ModMetadataParser {
 			switch (reader.peek()) {
 			case STRING:
 				// All mixin configs specified via string are assumed to be universal
-				mixins.add(new V1ModMetadata.MixinEntry(reader.nextString(), ModEnvironment.UNIVERSAL));
+				mixins.add(new MixinEntry(reader.nextString(), ModEnvironment.UNIVERSAL));
 				break;
 			case BEGIN_OBJECT:
 				reader.beginObject();
@@ -421,7 +435,7 @@ final class V1ModMetadataParser {
 					throw new ParseMetadataException.MissingField("Missing mandatory key 'config' in mixin entry!");
 				}
 
-				mixins.add(new V1ModMetadata.MixinEntry(config, environment));
+				mixins.add(new MixinEntry(config, environment));
 				break;
 			default:
 				warnings.add(new ParseWarning(reader.getLineNumber(), reader.getColumn(), "Invalid mixin entry type"));
@@ -585,10 +599,10 @@ final class V1ModMetadataParser {
 		}
 	}
 
-	private static V1ModMetadata.IconEntry readIcon(JsonReader reader) throws IOException, ParseMetadataException {
+	private static IconEntry readIcon(JsonReader reader) throws IOException, ParseMetadataException {
 		switch (reader.peek()) {
 		case STRING:
-			return new V1ModMetadata.Single(reader.nextString());
+			return new SingleIconEntry(reader.nextString());
 		case BEGIN_OBJECT:
 			reader.beginObject();
 
@@ -622,7 +636,7 @@ final class V1ModMetadataParser {
 				throw new ParseMetadataException("Icon object must not be empty!", reader);
 			}
 
-			return new V1ModMetadata.MapEntry(iconMap);
+			return new MapIconEntry(iconMap);
 		default:
 			throw new ParseMetadataException("Icon entry must be an object or string!", reader);
 		}

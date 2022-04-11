@@ -30,6 +30,7 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.metadata.AbstractModMetadata;
 import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
@@ -58,8 +59,8 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	}
 
 	@Override
-	public Collection<String> getProvides() {
-		return parent.getProvides();
+	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+		return parent.getAdditionallyProvidedMods();
 	}
 
 	@Override
@@ -181,7 +182,4 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	public Collection<String> getEntrypointKeys() {
 		return Collections.emptyList();
 	}
-
-	@Override
-	public void emitFormatWarnings() { }
 }

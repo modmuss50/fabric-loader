@@ -35,6 +35,7 @@ import java.util.zip.ZipInputStream;
 
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ModDependency;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.plugin.ModCandidate;
 import net.fabricmc.loader.impl.game.GameProvider.BuiltinMod;
 import net.fabricmc.loader.impl.metadata.AbstractModMetadata;
@@ -146,8 +147,8 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return metadata.getVersion();
 	}
 
-	public Collection<String> getProvides() {
-		return metadata.getProvides();
+	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+		return metadata.getAdditionallyProvidedMods();
 	}
 
 	public boolean isBuiltin() {

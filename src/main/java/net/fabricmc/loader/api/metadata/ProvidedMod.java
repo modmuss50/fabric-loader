@@ -14,9 +14,29 @@
  * limitations under the License.
  */
 
-package net.fabricmc.loader.api.plugin;
+package net.fabricmc.loader.api.metadata;
 
-@FunctionalInterface
-public interface LoaderPluginEntrypoint {
-	void initPlugin(LoaderPluginApi api);
+import net.fabricmc.loader.api.Version;
+
+public interface ProvidedMod {
+	/**
+	 * Returns the provided mod ID.
+	 *
+	 * @return provided mod id
+	 */
+	String getId();
+
+	/**
+	 * Returns the provided mod version.
+	 *
+	 * @return provided mod version
+	 */
+	Version getVersion();
+
+	/**
+	 * Returns whether the provided mod is exclusive and can't share its id with any mod provided by another mod.
+	 *
+	 * @return true if this provided mod id must be exclusively loaded, false otherwise
+	 */
+	boolean isExclusive();
 }

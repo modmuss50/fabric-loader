@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import net.fabricmc.loader.api.SemanticVersion;
 import net.fabricmc.loader.api.VersionParsingException;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.discovery.ModCandidateImpl;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -51,8 +52,8 @@ public final class MetadataVerifier {
 	static void verify(LoaderModMetadata metadata, boolean isDevelopment) throws ParseMetadataException {
 		checkModId(metadata.getId(), "mod id");
 
-		for (String providesDecl : metadata.getProvides()) {
-			checkModId(providesDecl, "provides declaration");
+		for (ProvidedMod mod : metadata.getAdditionallyProvidedMods()) {
+			checkModId(mod.getId(), "provides declaration");
 		}
 
 		// TODO: verify mod id and version decls in deps
@@ -78,8 +79,6 @@ public final class MetadataVerifier {
 				Log.warn(LogCategory.METADATA, "Mod %s uses the version %s which isn't compatible with Loader's extended semantic version format (%s), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version",
 						metadata.getId(), version, exc.getMessage());
 			}
-
-			metadata.emitFormatWarnings();
 		}
 	}
 

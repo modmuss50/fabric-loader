@@ -49,8 +49,6 @@ public interface LoaderModMetadata extends net.fabricmc.loader.metadata.LoaderMo
 	@Override
 	Collection<String> getEntrypointKeys();
 
-	void emitFormatWarnings();
-
 	void setVersion(Version version);
 	void setDependencies(Collection<ModDependency> dependencies);
 }

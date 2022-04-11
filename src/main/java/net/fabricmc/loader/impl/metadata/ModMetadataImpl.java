@@ -31,18 +31,19 @@ import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
-import net.fabricmc.loader.impl.util.log.Log;
-import net.fabricmc.loader.impl.util.log.LogCategory;
+import net.fabricmc.loader.api.metadata.ProvidedMod;
 
-final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetadata {
+final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMetadata {
 	static final IconEntry NO_ICON = size -> Optional.empty();
+
+	private final int schemaVersion;
 
 	// Required values
 	private final String id;
 	private Version version;
 
 	// Optional (id provides)
-	private final Collection<String> provides;
+	private final Collection<ProvidedMod> providedMods;
 
 	// Optional (mod loading)
 	private final ModEnvironment environment;
@@ -54,8 +55,6 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 
 	// Optional (dependency resolution)
 	private Collection<ModDependency> dependencies;
-	// Happy little accidents
-	private final boolean hasRequires;
 
 	// Optional (metadata)
 	/* @Nullable */
@@ -73,24 +72,29 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 	// Optional (custom values)
 	private final Map<String, CustomValue> customValues;
 
-	V1ModMetadata(String id, Version version, Collection<String> provides,
+	// old (v0 metadata)
+	private final Collection<String> oldInitializers;
+
+	ModMetadataImpl(int schemaVersion,
+			String id, Version version, Collection<ProvidedMod> providedMods,
 			ModEnvironment environment, Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
 			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
-			Collection<ModDependency> dependencies, boolean hasRequires,
+			Collection<ModDependency> dependencies,
 			/* @Nullable */ String name, /* @Nullable */String description,
 			Collection<Person> authors, Collection<Person> contributors, /* @Nullable */ContactInformation contact, Collection<String> license, IconEntry icon,
 			Map<String, String> languageAdapters,
-			Map<String, CustomValue> customValues) {
+			Map<String, CustomValue> customValues,
+			Collection<String> oldInitializers) {
+		this.schemaVersion = schemaVersion;
 		this.id = id;
 		this.version = version;
-		this.provides = Collections.unmodifiableCollection(provides);
+		this.providedMods = unmodifiable(providedMods);
 		this.environment = environment;
-		this.entrypoints = Collections.unmodifiableMap(entrypoints);
-		this.jars = Collections.unmodifiableCollection(jars);
-		this.mixins = Collections.unmodifiableCollection(mixins);
+		this.entrypoints = unmodifiable(entrypoints);
+		this.jars = unmodifiable(jars);
+		this.mixins = unmodifiable(mixins);
 		this.accessWidener = accessWidener;
-		this.dependencies = Collections.unmodifiableCollection(dependencies);
-		this.hasRequires = hasRequires;
+		this.dependencies = unmodifiable(dependencies);
 		this.name = name;
 
 		// Empty description if not specified
@@ -100,8 +104,8 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 			this.description = "";
 		}
 
-		this.authors = Collections.unmodifiableCollection(authors);
-		this.contributors = Collections.unmodifiableCollection(contributors);
+		this.authors = unmodifiable(authors);
+		this.contributors = unmodifiable(contributors);
 
 		if (contact != null) {
 			this.contact = contact;
@@ -109,21 +113,31 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 			this.contact = ContactInformation.EMPTY;
 		}
 
-		this.license = Collections.unmodifiableCollection(license);
+		this.license = unmodifiable(license);
 
 		if (icon != null) {
 			this.icon = icon;
 		} else {
-			this.icon = V1ModMetadata.NO_ICON;
+			this.icon = NO_ICON;
 		}
 
-		this.languageAdapters = Collections.unmodifiableMap(languageAdapters);
-		this.customValues = Collections.unmodifiableMap(customValues);
+		this.languageAdapters = unmodifiable(languageAdapters);
+		this.customValues = unmodifiable(customValues);
+
+		this.oldInitializers = unmodifiable(oldInitializers);
+	}
+
+	private static <T> Collection<T> unmodifiable(Collection<? extends T> c) {
+		return c.isEmpty() ? Collections.emptyList() : Collections.unmodifiableCollection(c);
+	}
+
+	private static <K, V> Map<K, V> unmodifiable(Map<? extends K, ? extends V> m) {
+		return m.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap(m);
 	}
 
 	@Override
 	public int getSchemaVersion() {
-		return 1;
+		return schemaVersion;
 	}
 
 	@Override
@@ -137,8 +151,8 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 	}
 
 	@Override
-	public Collection<String> getProvides() {
-		return this.provides;
+	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+		return providedMods;
 	}
 
 	@Override
@@ -250,7 +264,7 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 
 	@Override
 	public Collection<String> getOldInitializers() {
-		return Collections.emptyList(); // Not applicable in V1
+		return oldInitializers;
 	}
 
 	@Override
@@ -273,10 +287,35 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 		return this.entrypoints.keySet();
 	}
 
-	@Override
-	public void emitFormatWarnings() {
-		if (hasRequires) {
-			Log.warn(LogCategory.METADATA, "Mod `%s` (%s) uses 'requires' key in fabric.mod.json, which is not supported - use 'depends'", this.id, this.version);
+	static final class ProvidedModImpl implements ProvidedMod {
+		private final String id;
+		private final Version version;
+		private final boolean exclusive;
+
+		ProvidedModImpl(String id, Version version, boolean exclusive) {
+			this.id = id;
+			this.version = version;
+			this.exclusive = exclusive;
+		}
+
+		@Override
+		public String getId() {
+			return id;
+		}
+
+		@Override
+		public Version getVersion() {
+			return version;
+		}
+
+		@Override
+		public boolean isExclusive() {
+			return exclusive;
+		}
+
+		@Override
+		public String toString() {
+			return String.format("%s %s (%s)", id, version, exclusive ? "exclusive" : "shared");
 		}
 	}
 
@@ -300,10 +339,10 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 		}
 	}
 
-	static final class JarEntry implements NestedJarEntry {
+	static final class NestedJarEntryImpl implements NestedJarEntry {
 		private final String file;
 
-		JarEntry(String file) {
+		NestedJarEntryImpl(String file) {
 			this.file = file;
 		}
 
@@ -327,10 +366,10 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 		Optional<String> getIconPath(int size);
 	}
 
-	static final class Single implements IconEntry {
+	static final class SingleIconEntry implements IconEntry {
 		private final String icon;
 
-		Single(String icon) {
+		SingleIconEntry(String icon) {
 			this.icon = icon;
 		}
 
@@ -340,10 +379,10 @@ final class V1ModMetadata extends AbstractModMetadata implements LoaderModMetada
 		}
 	}
 
-	static final class MapEntry implements IconEntry {
+	static final class MapIconEntry implements IconEntry {
 		private final SortedMap<Integer, String> icons;
 
-		MapEntry(SortedMap<Integer, String> icons) {
+		MapIconEntry(SortedMap<Integer, String> icons) {
 			this.icons = icons;
 		}
 

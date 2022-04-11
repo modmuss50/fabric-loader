@@ -832,9 +832,10 @@ final class ModSolver {
 		// add constraints to force-load root mods (ALWAYS only, IF_POSSIBLE is being handled through negative weight later)
 		// add single mod per id constraints
 
-		for (List<ModCandidateImpl> variants : modsById.values()) {
+		for (Map.Entry<String, List<ModCandidateImpl>> entry : modsById.entrySet()) {
+			String id = entry.getKey();
+			List<ModCandidateImpl> variants = entry.getValue();
 			ModCandidateImpl firstMod = variants.get(0);
-			String id = firstMod.getId();
 
 			// force-load root mod
 
@@ -874,7 +875,9 @@ final class ModSolver {
 
 			// single mod per id constraint
 
-			suitableMods.addAll(variants);
+			for (ModCandidateImpl mod : variants) {
+				if (ModResolver.hasExclusiveId(mod, id)) suitableMods.add(mod); // id needs to be unique for the mod
+			}
 
 			if (installableMods != null) {
 				List<AddModVar> installable = installableMods.get(id);
@@ -888,7 +891,7 @@ final class ModSolver {
 			}
 
 			if (suitableMods.size() > 1 // multiple options
-					|| enableOptional && firstMod.getLoadCondition() == ModLoadCondition.IF_POSSIBLE) { // optional greedy loading
+					|| enableOptional && firstMod.getLoadCondition() == ModLoadCondition.IF_POSSIBLE && firstMod.getId().equals(id)) { // optional greedy loading (actual mod only, not for extra provides entries)
 				dependencyHelper.atMost(1, suitableMods.toArray(new DomainObject[0])).named(new Explanation(ErrorKind.UNIQUE_ID, id));
 			}
 
