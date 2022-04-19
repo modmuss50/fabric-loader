@@ -32,6 +32,7 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
+import net.fabricmc.loader.impl.discovery.LoadPhases;
 
 final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMetadata {
 	static final IconEntry NO_ICON = size -> Optional.empty();
@@ -173,6 +174,11 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	@Override
 	public boolean loadsInEnvironment(EnvType type) {
 		return this.environment.matches(type);
+	}
+
+	@Override
+	public String getLoadPhase() {
+		return LoadPhases.DEFAULT;
 	}
 
 	@Override

@@ -79,6 +79,11 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	}
 
 	@Override
+	public String getLoadPhase() {
+		return LoadPhases.BUILTIN;
+	}
+
+	@Override
 	public Collection<ModDependency> getDependencies() {
 		return dependencies;
 	}

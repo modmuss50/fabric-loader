@@ -33,13 +33,14 @@ public interface LoaderPluginApi { // one instance per plugin, binding the calle
 	void addPathToCacheKey(Path path);
 	void setExternalModSource(); // referenced loader plugin must run every time, even if all cache keys match
 
-	ModCandidate createMod(Path path);
-	ModCandidate createMod(List<Path> paths);
+	ModCandidate readMod(Path path);
+	ModCandidate readMod(List<Path> paths);
 	ModCandidate createMod(List<Path> paths, ModMetadata metadata, Collection<ModCandidate> nestedMods);
 
-	ModCandidate getMod(String modId);
+	Collection<ModCandidate> getMods(String modId);
 	Collection<ModCandidate> getMods();
 	boolean addMod(ModCandidate mod);
+	boolean addMod(ModCandidate mod, boolean includeNested);
 	boolean removeMod(String modId);
 
 	void addModSource(Function<ModDependency, ModCandidate> source);

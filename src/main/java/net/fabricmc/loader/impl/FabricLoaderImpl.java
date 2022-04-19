@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 import org.objectweb.asm.Opcodes;
 
@@ -44,6 +44,8 @@ import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.ObjectShare;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
+import net.fabricmc.loader.api.plugin.LoaderPluginApi;
+import net.fabricmc.loader.api.plugin.LoaderPluginEntrypoint;
 import net.fabricmc.loader.impl.discovery.ArgumentModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.ClasspathModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.DirectoryModCandidateFinder;
@@ -51,6 +53,7 @@ import net.fabricmc.loader.impl.discovery.ModCandidateImpl;
 import net.fabricmc.loader.impl.discovery.ModDiscoverer;
 import net.fabricmc.loader.impl.discovery.ModResolutionException;
 import net.fabricmc.loader.impl.discovery.ModResolver;
+import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
 import net.fabricmc.loader.impl.discovery.RuntimeModRemapper;
 import net.fabricmc.loader.impl.entrypoint.EntrypointStorage;
 import net.fabricmc.loader.impl.game.GameProvider;
@@ -80,8 +83,9 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	public static final String REMAPPED_JARS_DIR_NAME = "remappedJars"; // relative to cache dir
 	private static final String TMP_DIR_NAME = "tmp"; // relative to cache dir
 
+	private static final String PLUGIN_ENTRY_POINT = "plugin";
+
 	protected final Map<String, ModContainerImpl> modMap = new HashMap<>();
-	private List<ModCandidateImpl> modCandidates;
 	protected List<ModContainerImpl> mods = new ArrayList<>();
 
 	private final Map<String, LanguageAdapter> adapterMap = new HashMap<>();
@@ -209,6 +213,8 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	}
 
 	private void setup() throws ModResolutionException {
+		adapterMap.put("default", DefaultLanguageAdapter.INSTANCE);
+
 		boolean remapRegularMods = isDevelopmentEnvironment();
 		VersionOverrides versionOverrides = new VersionOverrides();
 		DependencyOverrides depOverrides = new DependencyOverrides(configDir);
@@ -221,7 +227,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		discoverer.addCandidateFinder(new ArgumentModCandidateFinder(remapRegularMods));
 
 		Map<String, Set<ModCandidateImpl>> envDisabledMods = new HashMap<>();
-		modCandidates = discoverer.discoverMods(this, envDisabledMods);
+		List<ModCandidateImpl> candidates = discoverer.discoverMods(this, envDisabledMods);
 
 		// dump version and dependency overrides info
 
@@ -235,69 +241,132 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		// resolve mods
 
-		modCandidates = ModResolver.resolve(modCandidates, getEnvironmentType(), envDisabledMods);
+		ResolutionContext context = new ResolutionContext(candidates, getEnvironmentType(), envDisabledMods, this::addMods);
+		ModResolver.resolve(context);
 
-		dumpModList(modCandidates);
+		// sort mods alphabetical
 
+		mods.sort(Comparator.comparing(ModContainerImpl::getId));
+
+		dumpModList(mods);
+
+		// final sort (may be non-alphabetic)
+
+		sortMods(mods, ModContainerImpl::getId);
+	}
+
+	private void addMods(List<ModCandidateImpl> mods, String phase, ResolutionContext context) {
 		Path cacheDir = gameDir.resolve(CACHE_DIR_NAME);
 		Path outputdir = cacheDir.resolve(PROCESSED_MODS_DIR_NAME);
 
 		// runtime mod remapping
 
-		if (remapRegularMods) {
+		if (isDevelopmentEnvironment()) {
 			if (System.getProperty(SystemProperties.REMAP_CLASSPATH_FILE) == null) {
 				Log.warn(LogCategory.MOD_REMAP, "Runtime mod remapping disabled due to no fabric.remapClasspathFile being specified. You may need to update loom.");
 			} else {
-				RuntimeModRemapper.remap(modCandidates, cacheDir.resolve(TMP_DIR_NAME), outputdir);
+				RuntimeModRemapper.remap(mods, context.getMods(), cacheDir.resolve(TMP_DIR_NAME), outputdir);
 			}
 		}
 
+		sortMods(mods, ModCandidateImpl::getId);
+
+		// add mods
+
+		List<ModContainerImpl> createdMods = new ArrayList<>(mods.size());
+
+		for (ModCandidateImpl candidate : mods) {
+			// prepare nio compatible path
+			if (!candidate.hasPath() && !candidate.isBuiltin()) {
+				try {
+					candidate.setPaths(Collections.singletonList(candidate.copyToDir(outputdir, false)));
+				} catch (IOException e) {
+					throw new RuntimeException("Error extracting mod "+candidate, e);
+				}
+			}
+
+			// create mod container
+			ModContainerImpl mod = addMod(candidate);
+			createdMods.add(mod);
+
+			// add mod to classpath
+			if (!mod.getId().equals(MOD_ID) && !mod.getMetadata().getType().equals("builtin")) {
+				for (Path path : mod.getCodeSourcePaths()) {
+					FabricLauncherBase.getLauncher().addToClassPath(path);
+				}
+			}
+		}
+
+		// run plugin entrypoints
+
+		boolean foundEntrypoints = false;
+
+		for (ModContainerImpl mod : createdMods) {
+			try {
+				for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(PLUGIN_ENTRY_POINT)) {
+					foundEntrypoints = true;
+					entrypointStorage.add(mod, PLUGIN_ENTRY_POINT, in, adapterMap);
+				}
+			} catch (Throwable t) {
+				throw new RuntimeException("Error initializing plugin entrypoint for mod "+mod.getId(), t);
+			}
+		}
+
+		if (foundEntrypoints) {
+			for (EntrypointContainer<LoaderPluginEntrypoint> entrypoint : getEntrypointContainers(PLUGIN_ENTRY_POINT, LoaderPluginEntrypoint.class)) {
+				ModContainer mod = entrypoint.getProvider();
+				if (!createdMods.contains(mod)) continue;
+
+				LoaderPluginApi api = new LoaderPluginApiImpl(mod.getMetadata().getId(), context);
+
+				try {
+					entrypoint.getEntrypoint().initPlugin(api);
+				} catch (Throwable t) {
+					throw new RuntimeException("Error invoking plugin entrypoint for mod "+mod.getMetadata().getId(), t);
+				}
+			}
+		}
+	}
+
+	private <T> void sortMods(List<T> mods, Function<T, String> idGetter) {
 		// shuffle mods in-dev to reduce the risk of false order reliance, apply late load requests
 
 		if (isDevelopmentEnvironment() && System.getProperty(SystemProperties.DEBUG_DISABLE_MOD_SHUFFLE) == null) {
-			Collections.shuffle(modCandidates);
+			Collections.shuffle(mods);
 		}
 
 		String modsToLoadLate = System.getProperty(SystemProperties.DEBUG_LOAD_LATE);
 
 		if (modsToLoadLate != null) {
 			for (String modId : modsToLoadLate.split(",")) {
-				for (Iterator<ModCandidateImpl> it = modCandidates.iterator(); it.hasNext(); ) {
-					ModCandidateImpl mod = it.next();
+				for (Iterator<T> it = mods.iterator(); it.hasNext(); ) {
+					T mod = it.next();
 
-					if (mod.getId().equals(modId)) {
+					if (idGetter.apply(mod).equals(modId)) {
 						it.remove();
-						modCandidates.add(mod);
+						mods.add(mod);
 						break;
 					}
 				}
 			}
 		}
-
-		// add mods
-
-		for (ModCandidateImpl mod : modCandidates) {
-			if (!mod.hasPath() && !mod.isBuiltin()) {
-				try {
-					mod.setPaths(Collections.singletonList(mod.copyToDir(outputdir, false)));
-				} catch (IOException e) {
-					throw new RuntimeException("Error extracting mod "+mod, e);
-				}
-			}
-
-			addMod(mod);
-		}
-
-		modCandidates = null;
 	}
 
-	private void dumpModList(List<ModCandidateImpl> mods) {
+	private void finishModLoading() {
+		setupLanguageAdapters();
+		setupMods();
+	}
+
+	private void dumpModList(List<? extends ModContainer> mods) {
 		StringBuilder modListText = new StringBuilder();
 
 		boolean[] lastItemOfNestLevel = new boolean[mods.size()];
-		List<ModCandidateImpl> topLevelMods = mods.stream()
-				.filter(mod -> mod.getParentMods().isEmpty())
-				.collect(Collectors.toList());
+		List<ModContainer> topLevelMods = new ArrayList<>();
+
+		for (ModContainer mod : mods) {
+			if (!mod.getContainingMod().isPresent()) topLevelMods.add(mod);
+		}
+
 		int topLevelModsCount = topLevelMods.size();
 
 		for (int i = 0; i < topLevelModsCount; i++) {
@@ -312,7 +381,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		Log.info(LogCategory.GENERAL, "Loading %d mod%s:%n%s", modsCount, modsCount != 1 ? "s" : "", modListText);
 	}
 
-	private void dumpModList0(ModCandidateImpl mod, StringBuilder log, int nestLevel, boolean[] lastItemOfNestLevel) {
+	private void dumpModList0(ModContainer mod, StringBuilder log, int nestLevel, boolean[] lastItemOfNestLevel) {
 		if (log.length() > 0) log.append('\n');
 
 		for (int depth = 0; depth < nestLevel; depth++) {
@@ -322,16 +391,21 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		log.append(nestLevel == 0 ? "\t" : "  ");
 		log.append(nestLevel == 0 ? "-" : lastItemOfNestLevel[nestLevel] ? " \\--" : " |--");
 		log.append(' ');
-		log.append(mod.getId());
+		log.append(mod.getMetadata().getId());
 		log.append(' ');
-		log.append(mod.getVersion().getFriendlyString());
+		log.append(mod.getMetadata().getVersion().getFriendlyString());
 
-		List<ModCandidateImpl> nestedMods = new ArrayList<>(mod.getNestedMods());
-		nestedMods.sort(Comparator.comparing(nestedMod -> nestedMod.getMetadata().getId()));
+		Collection<ModContainer> nestedMods = mod.getContainedMods();
 
 		if (!nestedMods.isEmpty()) {
-			Iterator<ModCandidateImpl> iterator = nestedMods.iterator();
-			ModCandidateImpl nestedMod;
+			if (nestedMods.size() > 1) {
+				List<ModContainer> sortedNestedMods = new ArrayList<>(nestedMods);
+				sortedNestedMods.sort(Comparator.comparing(nestedMod -> nestedMod.getMetadata().getId()));
+				nestedMods = sortedNestedMods;
+			}
+
+			Iterator<ModContainer> iterator = nestedMods.iterator();
+			ModContainer nestedMod;
 			boolean lastItem;
 
 			while (iterator.hasNext()) {
@@ -345,21 +419,6 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 				if (lastItem) lastItemOfNestLevel[nestLevel+1] = false;
 			}
 		}
-	}
-
-	private void finishModLoading() {
-		// add mods to classpath
-		// TODO: This can probably be made safer, but that's a long-term goal
-		for (ModContainerImpl mod : mods) {
-			if (!mod.getMetadata().getId().equals(MOD_ID) && !mod.getMetadata().getType().equals("builtin")) {
-				for (Path path : mod.getCodeSourcePaths()) {
-					FabricLauncherBase.getLauncher().addToClassPath(path);
-				}
-			}
-		}
-
-		setupLanguageAdapters();
-		setupMods();
 	}
 
 	public boolean hasEntrypoints(String key) {
@@ -393,25 +452,13 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		return objectShare;
 	}
 
-	public ModCandidateImpl getModCandidate(String id) {
-		if (modCandidates == null) return null;
-
-		for (ModCandidateImpl mod : modCandidates) {
-			if (mod.getId().equals(id)) return mod;
-		}
-
-		return null;
-	}
-
-	public Collection<ModCandidateImpl> getModCandidates() {
-		if (modCandidates == null) return Collections.emptyList();
-
-		return modCandidates;
-	}
-
 	@Override
-	public Optional<net.fabricmc.loader.api.ModContainer> getModContainer(String id) {
+	public Optional<ModContainer> getModContainer(String id) {
 		return Optional.ofNullable(modMap.get(id));
+	}
+
+	public ModContainerImpl getModInternal(String id) {
+		return modMap.get(id);
 	}
 
 	@Override
@@ -433,7 +480,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		return FabricLauncherBase.getLauncher().isDevelopment();
 	}
 
-	private void addMod(ModCandidateImpl candidate) throws ModResolutionException {
+	private ModContainerImpl addMod(ModCandidateImpl candidate) {
 		ModContainerImpl container = new ModContainerImpl(candidate);
 		mods.add(container);
 		modMap.put(candidate.getId(), container);
@@ -445,11 +492,11 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 				modMap.putIfAbsent(mod.getId(), container);
 			}
 		}
+
+		return container;
 	}
 
 	private void setupLanguageAdapters() {
-		adapterMap.put("default", DefaultLanguageAdapter.INSTANCE);
-
 		for (ModContainerImpl mod : mods) {
 			// add language adapters
 			for (Map.Entry<String, String> laEntry : mod.getMetadata().getLanguageAdapterDefinitions().entrySet()) {
@@ -488,7 +535,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	public void loadAccessWideners() {
 		AccessWidenerReader accessWidenerReader = new AccessWidenerReader(accessWidener);
 
-		for (net.fabricmc.loader.api.ModContainer modContainer : getAllMods()) {
+		for (ModContainer modContainer : mods) {
 			LoaderModMetadata modMetadata = (LoaderModMetadata) modContainer.getMetadata();
 			String accessWidener = modMetadata.getAccessWidener();
 			if (accessWidener == null) continue;

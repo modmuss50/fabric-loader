@@ -63,6 +63,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 	private final Collection<ModCandidateImpl> parentMods;
 	private int minNestLevel;
 	private SoftReference<ByteBuffer> dataRef;
+	boolean enableGreedyLoad;
 
 	static ModCandidateImpl createBuiltin(BuiltinMod mod, VersionOverrides versionOverrides, DependencyOverrides depOverrides) {
 		LoaderModMetadata metadata = new BuiltinMetadataWrapper(mod.metadata);
@@ -106,10 +107,12 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return originPaths;
 	}
 
+	@Override
 	public boolean hasPath() {
 		return paths != null;
 	}
 
+	@Override
 	public List<Path> getPaths() {
 		if (paths == null) throw new IllegalStateException("no path set");
 
@@ -123,6 +126,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		clearCachedData();
 	}
 
+	@Override
 	public String getLocalPath() {
 		if (localPath != null) {
 			return localPath;
@@ -133,6 +137,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		}
 	}
 
+	@Override
 	public LoaderModMetadata getMetadata() {
 		return metadata;
 	}
@@ -167,12 +172,14 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return requiresRemap;
 	}
 
-	public Collection<ModCandidateImpl> getNestedMods() {
-		return nestedMods;
+	@Override
+	public Collection<ModCandidateImpl> getContainingMods() {
+		return parentMods;
 	}
 
-	public Collection<ModCandidateImpl> getParentMods() {
-		return parentMods;
+	@Override
+	public Collection<ModCandidateImpl> getContainedMods() {
+		return nestedMods;
 	}
 
 	boolean addParent(ModCandidateImpl parent) {
@@ -206,6 +213,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return true;
 	}
 
+	@Override
 	public boolean isRoot() {
 		return minNestLevel == 0;
 	}

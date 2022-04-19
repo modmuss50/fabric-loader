@@ -31,6 +31,8 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 public interface LoaderModMetadata extends net.fabricmc.loader.metadata.LoaderModMetadata {
 	int getSchemaVersion();
 
+	String getLoadPhase();
+
 	default String getOldStyleLanguageAdapter() {
 		return "net.fabricmc.loader.language.JavaLanguageAdapter";
 	}

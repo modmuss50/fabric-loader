@@ -23,13 +23,14 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.objectweb.asm.commons.Remapper;
@@ -51,8 +52,8 @@ import net.fabricmc.tinyremapper.OutputConsumerPath;
 import net.fabricmc.tinyremapper.TinyRemapper;
 
 public final class RuntimeModRemapper {
-	public static void remap(Collection<ModCandidateImpl> modCandidates, Path tmpDir, Path outputDir) {
-		List<ModCandidateImpl> modsToRemap = new ArrayList<>();
+	public static void remap(Collection<ModCandidateImpl> modCandidates, Collection<ModCandidateImpl> cpMods, Path tmpDir, Path outputDir) {
+		Set<ModCandidateImpl> modsToRemap = new HashSet<>();
 
 		for (ModCandidateImpl mod : modCandidates) {
 			if (mod.getRequiresRemap()) {
@@ -78,12 +79,9 @@ public final class RuntimeModRemapper {
 		Map<ModCandidateImpl, RemapInfo> infoMap = new HashMap<>();
 
 		try {
-			for (ModCandidateImpl mod : modsToRemap) {
+			for (ModCandidateImpl mod : cpMods) {
 				RemapInfo info = new RemapInfo();
 				infoMap.put(mod, info);
-
-				InputTag tag = remapper.createInputTag();
-				info.tag = tag;
 
 				if (mod.hasPath()) {
 					List<Path> paths = mod.getPaths();
@@ -95,10 +93,17 @@ public final class RuntimeModRemapper {
 					info.inputIsTemp = true;
 				}
 
-				info.outputPath = outputDir.resolve(mod.getDefaultFileName());
-				Files.deleteIfExists(info.outputPath);
+				if (modsToRemap.contains(mod)) {
+					InputTag tag = remapper.createInputTag();
+					info.tag = tag;
 
-				remapper.readInputsAsync(tag, info.inputPath);
+					info.outputPath = outputDir.resolve(mod.getDefaultFileName());
+					Files.deleteIfExists(info.outputPath);
+
+					remapper.readInputsAsync(tag, info.inputPath);
+				} else {
+					remapper.readClassPathAsync(info.inputPath);
+				}
 			}
 
 			//Done in a 2nd loop as we need to make sure all the inputs are present before remapping
@@ -131,7 +136,7 @@ public final class RuntimeModRemapper {
 
 					try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(info.inputPath, false)) {
 						FileSystem fs = jarFs.get();
-						info.accessWidener = remapAccessWidener(Files.readAllBytes(fs.getPath(accessWidener)), remapper.getRemapper());
+						info.accessWidener = remapAccessWidener(Files.readAllBytes(fs.getPath(accessWidener)), remapper.getEnvironment().getRemapper());
 					} catch (Throwable t) {
 						throw new RuntimeException("Error remapping access widener for mod '"+mod.getId()+"'!", t);
 					}

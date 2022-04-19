@@ -18,21 +18,24 @@ import net.fabricmc.loader.api.plugin.LoaderPluginApi;
 import net.fabricmc.loader.api.plugin.ModCandidate;
 import net.fabricmc.loader.impl.discovery.ModCandidateImpl;
 import net.fabricmc.loader.impl.discovery.ModDiscoverer;
+import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 
-public final class PluginApiImpl implements LoaderPluginApi {
+public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	static final List<Function<ModDependency, ModCandidate>> modSources = new ArrayList<>(); // TODO: use this
-	static final List<MixinConfigEntry> mixinConfigs = new ArrayList<>(); // TODO: use this
+	static final List<MixinConfigEntry> mixinConfigs = new ArrayList<>();
 	// TODO: use these:
 	static final List<TransformerEntry<ByteBuffer>> byteBufferTransformers = new ArrayList<>();
 	static final List<TransformerEntry<ClassVisitor>> classVisitorProviders = new ArrayList<>();
 	static final List<TransformerEntry<ClassNode>> classNodeTransformers = new ArrayList<>();
 
 	private final String pluginModId;
+	private final ResolutionContext context;
 
-	public PluginApiImpl(String pluginModId) {
+	public LoaderPluginApiImpl(String pluginModId, ResolutionContext context) {
 		this.pluginModId = pluginModId;
+		this.context = context;
 	}
 
 	@Override
@@ -51,21 +54,21 @@ public final class PluginApiImpl implements LoaderPluginApi {
 	}
 
 	@Override
-	public ModCandidate createMod(Path path) {
+	public ModCandidate readMod(Path path) {
 		Objects.requireNonNull(path, "null path");
 
-		return createMod(Collections.singletonList(path));
+		return readMod(Collections.singletonList(path));
 	}
 
 	@Override
-	public ModCandidate createMod(List<Path> paths) {
+	public ModCandidate readMod(List<Path> paths) {
 		checkFrozen();
 		if (paths.isEmpty()) throw new IllegalArgumentException("empty paths");
 
 		ModDiscoverer discoverer = FabricLoaderImpl.INSTANCE.getDiscoverer();
 		if (discoverer == null) throw new IllegalStateException("createMod is only available during mod discovery");
 
-		return discoverer.scan(paths, false);
+		return discoverer.scan(normalizePaths(paths), false);
 	}
 
 	@Override
@@ -96,32 +99,54 @@ public final class PluginApiImpl implements LoaderPluginApi {
 			}
 		}
 
-		return ModCandidateImpl.createPlain(paths, loaderMeta, false, nestedModsCopy);
+		return ModCandidateImpl.createPlain(normalizePaths(paths), loaderMeta, false, nestedModsCopy);
+	}
+
+	private static List<Path> normalizePaths(List<Path> paths) {
+		List<Path> ret = new ArrayList<>(paths.size());
+
+		for (Path p : paths) {
+			ret.add(p.toAbsolutePath().normalize());
+		}
+
+		return ret;
 	}
 
 	@Override
-	public ModCandidate getMod(String modId) {
+	public Collection<ModCandidate> getMods(String modId) {
 		checkFrozen();
 		Objects.requireNonNull(modId, "null modId");
 
-		return FabricLoaderImpl.INSTANCE.getModCandidate(modId);
+		return Collections.unmodifiableCollection(context.getMods(modId));
 	}
 
 	@Override
 	public Collection<ModCandidate> getMods() {
 		checkFrozen();
 
-		return Collections.unmodifiableCollection(FabricLoaderImpl.INSTANCE.getModCandidates());
+		return Collections.unmodifiableCollection(context.getMods());
 	}
 
 	@Override
 	public boolean addMod(ModCandidate mod) {
+		return addMod(mod, true);
+	}
+
+	@Override
+	public boolean addMod(ModCandidate mod, boolean includeNested) {
 		checkFrozen();
 		Objects.requireNonNull(mod, "null mod");
 		if (!(mod instanceof ModCandidateImpl)) throw new IllegalArgumentException("invalid ModCandidate class: "+mod.getClass());
 
-		// TODO Auto-generated method stub
-		return false;
+		if (!context.addMod((ModCandidateImpl) mod)) return false;
+
+		if (includeNested) {
+			for (ModCandidate m : mod.getContainedMods()) {
+				addMod(m, true);
+			}
+		}
+
+		return true;
 	}
 
 	@Override
@@ -192,10 +217,14 @@ public final class PluginApiImpl implements LoaderPluginApi {
 		if (FabricLoaderImpl.INSTANCE.isFrozen()) throw new IllegalStateException("loading progress advanced beyond where loader plugins may act");
 	}
 
-	static final class MixinConfigEntry {
-		final String pluginModId;
-		final String modId;
-		final String location;
+	public static List<MixinConfigEntry> getMixinConfigs() {
+		return mixinConfigs;
+	}
+
+	public static final class MixinConfigEntry {
+		public final String pluginModId;
+		public final String modId;
+		public final String location;
 
 		MixinConfigEntry(String pluginModId, String modId, String location) {
 			this.pluginModId = pluginModId;

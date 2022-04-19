@@ -16,6 +16,28 @@
 
 package net.fabricmc.loader.api.plugin;
 
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+
+import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.metadata.ModMetadata;
+
+/**
+ * Representation of a mod that might get chosen to be loaded.
+ *
+ * <p>The data exposed here is read only, mutating it is not supported!
+ */
 public interface ModCandidate {
+	ModMetadata getMetadata();
 	String getId();
+	Version getVersion();
+
+	boolean hasPath();
+	List<Path> getPaths();
+	String getLocalPath();
+
+	boolean isRoot();
+	Collection<? extends ModCandidate> getContainingMods();
+	Collection<? extends ModCandidate> getContainedMods();
 }

@@ -161,6 +161,8 @@ public final class ModDiscoverer {
 					}
 				}
 			}
+
+			nestedModInitDatas.clear();
 		} catch (TimeoutException e) {
 			throw new FormattedException("Mod discovery took too long!",
 					"Analyzing the mod folder contents took longer than %d seconds. This may be caused by unusually slow hardware, pathological antivirus interference or other issues. The timeout can be changed with the system property %s (-D%<s=<desired timeout in seconds>).",
@@ -179,17 +181,18 @@ public final class ModDiscoverer {
 		Queue<ModCandidateImpl> queue = new ArrayDeque<>(candidates);
 		ModCandidateImpl mod;
 
-		while ((mod = queue.poll()) != null) {
+		while ((mod = queue.poll()) != null) { // TODO: merge this with similar logic in scan and similar needs in net.fabricmc.loader.impl.LoaderPluginApiImpl.createMod(List<Path>, ModMetadata, Collection<ModCandidate>)
 			if (mod.getMetadata().loadsInEnvironment(envType)) {
 				if (!ret.add(mod)) continue;
 
-				for (ModCandidateImpl child : mod.getNestedMods()) {
+				for (ModCandidateImpl child : mod.getContainedMods()) {
 					if (child.addParent(mod)) {
 						queue.add(child);
 					}
 				}
 			} else {
 				envDisabledModsOut.computeIfAbsent(mod.getId(), ignore -> Collections.newSetFromMap(new IdentityHashMap<>())).add(mod);
+				// TODO: add now-unlinked child mods to envDisabledModsOut as well
 			}
 		}
 
@@ -221,6 +224,23 @@ public final class ModDiscoverer {
 				}
 			}
 		}
+
+		nestedModInitDatas.clear();
+
+		if (!ret.getMetadata().loadsInEnvironment(envType)) return null;
+
+		Queue<ModCandidateImpl> queue = new ArrayDeque<>();
+		ModCandidateImpl mod = ret;
+
+		do {
+			if (mod.getMetadata().loadsInEnvironment(envType)) {
+				for (ModCandidateImpl child : mod.getContainedMods()) {
+					if (child.addParent(mod)) {
+						queue.add(child);
+					}
+				}
+			}
+		} while ((mod = queue.poll()) != null);
 
 		return ret;
 	}

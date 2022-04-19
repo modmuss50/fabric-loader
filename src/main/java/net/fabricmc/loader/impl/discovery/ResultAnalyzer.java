@@ -31,10 +31,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.SemanticVersion;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
+import net.fabricmc.loader.api.plugin.ModCandidate;
+import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
 import net.fabricmc.loader.impl.discovery.ModSolver.AddModVar;
 import net.fabricmc.loader.impl.discovery.ModSolver.InactiveReason;
 import net.fabricmc.loader.impl.metadata.AbstractModMetadata;
@@ -47,8 +48,7 @@ final class ResultAnalyzer {
 	private static final boolean SHOW_INACTIVE = false;
 
 	@SuppressWarnings("unused")
-	static String gatherErrors(ModSolver.Result result, Map<String, ModCandidateImpl> selectedMods, Map<String, List<ModCandidateImpl>> modsById,
-			Map<String, Set<ModCandidateImpl>> envDisabledMods, EnvType envType) {
+	static String gatherErrors(ModSolver.Result result, ResolutionContext context) {
 		StringWriter sw = new StringWriter();
 
 		try (PrintWriter pw = new PrintWriter(sw)) {
@@ -58,7 +58,7 @@ final class ResultAnalyzer {
 			if (result.fix != null) {
 				pw.printf("\n%s", Localization.format("resolution.solutionHeader"));
 
-				formatFix(result.fix, result, selectedMods, modsById, envDisabledMods, envType, pw);
+				formatFix(result.fix, result, context, pw);
 
 				pw.printf("\n%s", Localization.format("resolution.depListHeader"));
 				prefix = "\t";
@@ -71,16 +71,16 @@ final class ResultAnalyzer {
 				assert explanation.error.isDependencyError;
 
 				ModDependency dep = explanation.dep;
-				ModCandidateImpl selected = selectedMods.get(dep.getModId());
+				ModCandidateImpl selected = context.selectedMods.get(dep.getModId());
 
 				if (selected != null) {
 					matches.add(selected);
 				} else {
-					List<ModCandidateImpl> candidates = modsById.get(dep.getModId());
+					List<ModCandidateImpl> candidates = context.modsById.get(dep.getModId());
 					if (candidates != null) matches.addAll(candidates);
 				}
 
-				addErrorToList(explanation.mod, explanation.dep, matches, envDisabledMods.containsKey(dep.getModId()), suggestFix, prefix, pw);
+				addErrorToList(explanation.mod, explanation.dep, matches, context.envDisabledMods.containsKey(dep.getModId()), suggestFix, prefix, pw);
 				matches.clear();
 			}
 
@@ -121,19 +121,16 @@ final class ResultAnalyzer {
 		return sw.toString();
 	}
 
-	private static void formatFix(ModSolver.Fix fix,
-			ModSolver.Result result, Map<String, ModCandidateImpl> selectedMods, Map<String, List<ModCandidateImpl>> modsById,
-			Map<String, Set<ModCandidateImpl>> envDisabledMods, EnvType envType,
-			PrintWriter pw) {
+	private static void formatFix(ModSolver.Fix fix, ModSolver.Result result, ResolutionContext context, PrintWriter pw) {
 		for (AddModVar mod : fix.modsToAdd) {
-			Set<ModCandidateImpl> envDisabledAlternatives = envDisabledMods.get(mod.getId());
+			Set<ModCandidateImpl> envDisabledAlternatives = context.envDisabledMods.get(mod.getId());
 
 			if (envDisabledAlternatives == null) {
 				pw.printf("\n\t - %s", Localization.format("resolution.solution.addMod",
 						mod.getId(),
 						formatVersionRequirements(mod.getVersionIntervals())));
 			} else {
-				String envKey = String.format("environment.%s", envType.name().toLowerCase(Locale.ENGLISH));
+				String envKey = String.format("environment.%s", context.envType.name().toLowerCase(Locale.ENGLISH));
 
 				pw.printf("\n\t - %s", Localization.format("resolution.solution.replaceModEnvDisabled",
 						formatOldMods(envDisabledAlternatives),
@@ -154,12 +151,12 @@ final class ResultAnalyzer {
 
 			if (oldMods.size() != 1 || !oldMods.get(0).getId().equals(newMod.getId())) { // replace mods with another mod (different mod id)
 				String newModName = newMod.getId();
-				ModCandidateImpl alt = selectedMods.get(newMod.getId());
+				ModCandidateImpl alt = context.selectedMods.get(newMod.getId());
 
 				if (alt != null) {
 					newModName = getName(alt);
 				} else {
-					List<ModCandidateImpl> alts = modsById.get(newMod.getId());
+					List<ModCandidateImpl> alts = context.modsById.get(newMod.getId());
 					if (alts != null && !alts.isEmpty()) newModName = getName(alts.get(0));
 				}
 
@@ -219,26 +216,25 @@ final class ResultAnalyzer {
 		}
 	}
 
-	static String gatherWarnings(List<ModCandidateImpl> uniqueSelectedMods, Map<String, ModCandidateImpl> selectedMods,
-			Map<String, Set<ModCandidateImpl>> envDisabledMods, EnvType envType) {
+	static String gatherWarnings(ResolutionContext context) {
 		StringWriter sw = new StringWriter();
 
 		try (PrintWriter pw = new PrintWriter(sw)) {
-			for (ModCandidateImpl mod : uniqueSelectedMods) {
+			for (ModCandidateImpl mod : context.uniqueSelectedMods) {
 				for (ModDependency dep : mod.getDependencies()) {
 					ModCandidateImpl depMod;
 
 					switch (dep.getKind()) {
 					case RECOMMENDS:
-						depMod = selectedMods.get(dep.getModId());
+						depMod = context.selectedMods.get(dep.getModId());
 
 						if (depMod == null || !dep.matches(depMod.getVersion())) {
-							addErrorToList(mod, dep, toList(depMod), envDisabledMods.containsKey(dep.getModId()), true, "", pw);
+							addErrorToList(mod, dep, toList(depMod), context.envDisabledMods.containsKey(dep.getModId()), true, "", pw);
 						}
 
 						break;
 					case CONFLICTS:
-						depMod = selectedMods.get(dep.getModId());
+						depMod = context.selectedMods.get(dep.getModId());
 
 						if (depMod != null && dep.matches(depMod.getVersion())) {
 							addErrorToList(mod, dep, toList(depMod), false, true, "", pw);
@@ -335,7 +331,7 @@ final class ResultAnalyzer {
 				ModCandidateImpl best = null;
 				int maxDiff = 0;
 
-				for (ModCandidateImpl parent : cur.getParentMods()) {
+				for (ModCandidateImpl parent : cur.getContainingMods()) {
 					int diff = cur.getMinNestLevel() - parent.getMinNestLevel();
 
 					if (diff > maxDiff) {

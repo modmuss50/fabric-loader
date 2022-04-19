@@ -50,17 +50,21 @@ public class ModContainerImpl extends net.fabricmc.loader.ModContainer {
 	public ModContainerImpl(ModCandidateImpl candidate) {
 		this.info = candidate.getMetadata();
 		this.codeSourcePaths = candidate.getPaths();
-		this.parentModId = candidate.getParentMods().isEmpty() ? null : candidate.getParentMods().iterator().next().getId();
-		this.childModIds = candidate.getNestedMods().isEmpty() ? Collections.emptyList() : new ArrayList<>(candidate.getNestedMods().size());
+		this.parentModId = candidate.getContainingMods().isEmpty() ? null : candidate.getContainingMods().iterator().next().getId();
+		this.childModIds = candidate.getContainedMods().isEmpty() ? Collections.emptyList() : new ArrayList<>(candidate.getContainedMods().size());
 
-		for (ModCandidateImpl c : candidate.getNestedMods()) {
-			if (c.getParentMods().size() <= 1 || c.getParentMods().iterator().next() == candidate) {
+		for (ModCandidateImpl c : candidate.getContainedMods()) {
+			if (c.getContainingMods().size() <= 1 || c.getContainingMods().iterator().next() == candidate) {
 				childModIds.add(c.getId());
 			}
 		}
 
 		List<Path> paths = candidate.getOriginPaths();
 		this.origin = paths != null ? new ModOriginImpl(paths) : new ModOriginImpl(parentModId, candidate.getLocalPath());
+	}
+
+	public String getId() {
+		return info.getId();
 	}
 
 	@Override
