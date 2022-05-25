@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package net.fabricmc.loader.api.plugin;
+package net.fabricmc.loader.api.extension;
 
 @FunctionalInterface
-public interface LoaderPluginEntrypoint {
-	void initPlugin(LoaderPluginApi api);
+public interface LoaderExtensionEntrypoint {
+	void initExtension(LoaderExtensionApi api);
 }

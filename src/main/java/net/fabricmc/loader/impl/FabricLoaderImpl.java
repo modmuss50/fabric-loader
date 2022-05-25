@@ -43,9 +43,9 @@ import net.fabricmc.loader.api.MappingResolver;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.ObjectShare;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
+import net.fabricmc.loader.api.extension.LoaderExtensionApi;
+import net.fabricmc.loader.api.extension.LoaderExtensionEntrypoint;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
-import net.fabricmc.loader.api.plugin.LoaderPluginApi;
-import net.fabricmc.loader.api.plugin.LoaderPluginEntrypoint;
 import net.fabricmc.loader.impl.discovery.ArgumentModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.ClasspathModCandidateFinder;
 import net.fabricmc.loader.impl.discovery.DirectoryModCandidateFinder;
@@ -83,7 +83,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	public static final String REMAPPED_JARS_DIR_NAME = "remappedJars"; // relative to cache dir
 	private static final String TMP_DIR_NAME = "tmp"; // relative to cache dir
 
-	private static final String PLUGIN_ENTRY_POINT = "plugin";
+	private static final String EXTENSION_ENTRY_POINT = "extension";
 
 	protected final Map<String, ModContainerImpl> modMap = new HashMap<>();
 	protected List<ModContainerImpl> mods = new ArrayList<>();
@@ -297,32 +297,32 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 			}
 		}
 
-		// run plugin entrypoints
+		// run extension entrypoints
 
 		boolean foundEntrypoints = false;
 
 		for (ModContainerImpl mod : createdMods) {
 			try {
-				for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(PLUGIN_ENTRY_POINT)) {
+				for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(EXTENSION_ENTRY_POINT)) {
 					foundEntrypoints = true;
-					entrypointStorage.add(mod, PLUGIN_ENTRY_POINT, in, adapterMap);
+					entrypointStorage.add(mod, EXTENSION_ENTRY_POINT, in, adapterMap);
 				}
 			} catch (Throwable t) {
-				throw new RuntimeException("Error initializing plugin entrypoint for mod "+mod.getId(), t);
+				throw new RuntimeException("Error initializing extension entrypoint for mod "+mod.getId(), t);
 			}
 		}
 
 		if (foundEntrypoints) {
-			for (EntrypointContainer<LoaderPluginEntrypoint> entrypoint : getEntrypointContainers(PLUGIN_ENTRY_POINT, LoaderPluginEntrypoint.class)) {
+			for (EntrypointContainer<LoaderExtensionEntrypoint> entrypoint : getEntrypointContainers(EXTENSION_ENTRY_POINT, LoaderExtensionEntrypoint.class)) {
 				ModContainer mod = entrypoint.getProvider();
 				if (!createdMods.contains(mod)) continue;
 
-				LoaderPluginApi api = new LoaderPluginApiImpl(mod.getMetadata().getId(), context);
+				LoaderExtensionApi api = new LoaderExtensionApiImpl(mod.getMetadata().getId(), context);
 
 				try {
-					entrypoint.getEntrypoint().initPlugin(api);
+					entrypoint.getEntrypoint().initExtension(api);
 				} catch (Throwable t) {
-					throw new RuntimeException("Error invoking plugin entrypoint for mod "+mod.getMetadata().getId(), t);
+					throw new RuntimeException("Error invoking extension entrypoint for mod "+mod.getMetadata().getId(), t);
 				}
 			}
 		}

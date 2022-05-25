@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.fabricmc.loader.api.plugin;
+package net.fabricmc.loader.api.extension;
 
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -29,9 +29,9 @@ import org.objectweb.asm.tree.ClassNode;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 
-public interface LoaderPluginApi { // one instance per plugin, binding the caller mod id
+public interface LoaderExtensionApi { // one instance per extension, binding the caller mod id
 	void addPathToCacheKey(Path path);
-	void setExternalModSource(); // referenced loader plugin must run every time, even if all cache keys match
+	void setExternalModSource(); // referenced loader extension must run every time, even if all cache keys match
 
 	ModCandidate readMod(Path path);
 	ModCandidate readMod(List<Path> paths);
@@ -40,8 +40,7 @@ public interface LoaderPluginApi { // one instance per plugin, binding the calle
 	Collection<ModCandidate> getMods(String modId);
 	Collection<ModCandidate> getMods();
 	boolean addMod(ModCandidate mod);
-	boolean addMod(ModCandidate mod, boolean includeNested);
-	boolean removeMod(String modId);
+	boolean removeMod(ModCandidate mod);
 
 	void addModSource(Function<ModDependency, ModCandidate> source);
 
@@ -50,9 +49,9 @@ public interface LoaderPluginApi { // one instance per plugin, binding the calle
 
 	void addMixinConfig(ModCandidate mod, String location);
 
-	void addClassByteBufferTransformer(ClassTransformer<ByteBuffer> transformer, TransformPhase phase);
-	void addClassVisitorProvider(ClassTransformer<ClassVisitor> provider, TransformPhase phase);
-	void addClassNodeTransformer(ClassTransformer<ClassNode> transformer, TransformPhase phase);
+	void addClassByteBufferTransformer(ClassTransformer<ByteBuffer> transformer, String phase);
+	void addClassVisitorProvider(ClassTransformer<ClassVisitor> provider, String phase);
+	void addClassNodeTransformer(ClassTransformer<ClassNode> transformer, String phase);
 
 	interface ClassTransformer<T> {
 		String getName(); // name further identifying the transformer within the context mod
@@ -61,8 +60,4 @@ public interface LoaderPluginApi { // one instance per plugin, binding the calle
 	}
 
 	// TODO: resource transformers
-
-	enum TransformPhase {
-		EARLY, DEFAULT, LATE; // mixin runs between default and late
-	}
 }

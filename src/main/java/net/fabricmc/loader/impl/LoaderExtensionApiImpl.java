@@ -12,17 +12,17 @@ import java.util.function.Function;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.tree.ClassNode;
 
+import net.fabricmc.loader.api.extension.LoaderExtensionApi;
+import net.fabricmc.loader.api.extension.ModCandidate;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModMetadata;
-import net.fabricmc.loader.api.plugin.LoaderPluginApi;
-import net.fabricmc.loader.api.plugin.ModCandidate;
 import net.fabricmc.loader.impl.discovery.ModCandidateImpl;
 import net.fabricmc.loader.impl.discovery.ModDiscoverer;
 import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 
-public final class LoaderPluginApiImpl implements LoaderPluginApi {
+public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 	static final List<Function<ModDependency, ModCandidate>> modSources = new ArrayList<>(); // TODO: use this
 	static final List<MixinConfigEntry> mixinConfigs = new ArrayList<>();
 	// TODO: use these:
@@ -33,7 +33,7 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	private final String pluginModId;
 	private final ResolutionContext context;
 
-	public LoaderPluginApiImpl(String pluginModId, ResolutionContext context) {
+	public LoaderExtensionApiImpl(String pluginModId, ResolutionContext context) {
 		this.pluginModId = pluginModId;
 		this.context = context;
 	}
@@ -129,33 +129,26 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 
 	@Override
 	public boolean addMod(ModCandidate mod) {
-		return addMod(mod, true);
-	}
-
-	@Override
-	public boolean addMod(ModCandidate mod, boolean includeNested) {
 		checkFrozen();
 		Objects.requireNonNull(mod, "null mod");
 		if (!(mod instanceof ModCandidateImpl)) throw new IllegalArgumentException("invalid ModCandidate class: "+mod.getClass());
 
 		if (!context.addMod((ModCandidateImpl) mod)) return false;
 
-		if (includeNested) {
-			for (ModCandidate m : mod.getContainedMods()) {
-				addMod(m, true);
-			}
+		for (ModCandidate m : mod.getContainedMods()) {
+			addMod(m);
 		}
 
 		return true;
 	}
 
 	@Override
-	public boolean removeMod(String modId) {
+	public boolean removeMod(ModCandidate mod) {
 		checkFrozen();
-		Objects.requireNonNull(modId, "null modId");
+		Objects.requireNonNull(mod, "null mod");
+		if (!(mod instanceof ModCandidateImpl)) throw new IllegalArgumentException("invalid ModCandidate class: "+mod.getClass());
 
-		// TODO Auto-generated method stub
-		return false;
+		return context.removeMod((ModCandidateImpl) mod);
 	}
 
 	@Override
@@ -184,7 +177,7 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	}
 
 	@Override
-	public void addClassByteBufferTransformer(ClassTransformer<ByteBuffer> transformer, TransformPhase phase) {
+	public void addClassByteBufferTransformer(ClassTransformer<ByteBuffer> transformer, String phase) {
 		checkFrozen();
 		Objects.requireNonNull(transformer, "null transformer");
 		Objects.requireNonNull(phase, "null phase");
@@ -194,7 +187,7 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	}
 
 	@Override
-	public void addClassVisitorProvider(ClassTransformer<ClassVisitor> provider, TransformPhase phase) {
+	public void addClassVisitorProvider(ClassTransformer<ClassVisitor> provider, String phase) {
 		checkFrozen();
 		Objects.requireNonNull(provider, "null provider");
 		Objects.requireNonNull(phase, "null phase");
@@ -204,7 +197,7 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	}
 
 	@Override
-	public void addClassNodeTransformer(ClassTransformer<ClassNode> transformer, TransformPhase phase) {
+	public void addClassNodeTransformer(ClassTransformer<ClassNode> transformer, String phase) {
 		checkFrozen();
 		Objects.requireNonNull(transformer, "null transformer");
 		Objects.requireNonNull(phase, "null phase");
@@ -222,24 +215,24 @@ public final class LoaderPluginApiImpl implements LoaderPluginApi {
 	}
 
 	public static final class MixinConfigEntry {
-		public final String pluginModId;
+		public final String extensionModId;
 		public final String modId;
 		public final String location;
 
-		MixinConfigEntry(String pluginModId, String modId, String location) {
-			this.pluginModId = pluginModId;
+		MixinConfigEntry(String extensionModId, String modId, String location) {
+			this.extensionModId = extensionModId;
 			this.modId = modId;
 			this.location = location;
 		}
 	}
 
 	static final class TransformerEntry<T> {
-		final String pluginModId;
-		final TransformPhase phase;
+		final String extensionModId;
+		final String phase;
 		final ClassTransformer<T> transformer;
 
-		TransformerEntry(String pluginModId, TransformPhase phase, ClassTransformer<T> transformer) {
-			this.pluginModId = pluginModId;
+		TransformerEntry(String extensionModId, String phase, ClassTransformer<T> transformer) {
+			this.extensionModId = extensionModId;
 			this.phase = phase;
 			this.transformer = transformer;
 		}

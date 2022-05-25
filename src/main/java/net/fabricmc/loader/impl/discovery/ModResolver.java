@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +36,7 @@ import org.sat4j.specs.ContradictionException;
 import org.sat4j.specs.TimeoutException;
 
 import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.extension.ModCandidate;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
@@ -415,13 +417,18 @@ public class ModResolver {
 			ModCandidateImpl mod = selectedMods.get(id);
 			if (mod != null) ret.add(mod);
 
+			for (ModCandidateImpl m : addedMods) {
+				if (m.getId().equals(id)) ret.add(m);
+			}
+
 			return ret;
 		}
 
 		public Collection<ModCandidateImpl> getMods() {
-			List<ModCandidateImpl> ret = new ArrayList<>(allModsSorted.size() + uniqueSelectedMods.size());
+			List<ModCandidateImpl> ret = new ArrayList<>(allModsSorted.size() + uniqueSelectedMods.size() + addedMods.size());
 			ret.addAll(allModsSorted);
 			ret.addAll(uniqueSelectedMods);
+			ret.addAll(addedMods);
 
 			return ret;
 		}
@@ -443,7 +450,56 @@ public class ModResolver {
 
 			addedMods.add(mod);
 
+			for (ModCandidate m : mod.getContainedMods()) {
+				addMod((ModCandidateImpl) m);
+			}
+
 			return true;
+		}
+
+		public boolean removeMod(ModCandidateImpl mod) {
+			if (selectedMods.get(mod.getId()) == mod) return false; // already loaded
+
+			if (!mod.getContainedMods().isEmpty()) { // also remove all mods that'd become orphaned (check if possible first, then apply)
+				Set<ModCandidateImpl> modsToRemove = Collections.newSetFromMap(new IdentityHashMap<>());
+				modsToRemove.add(mod);
+				Queue<ModCandidateImpl> queue = new ArrayDeque<>();
+				ModCandidateImpl parent = mod;
+
+				do {
+					for (ModCandidateImpl m : parent.getContainedMods()) {
+						if ((m.getContainingMods().size() == 1 || modsToRemove.containsAll(m.getContainingMods())) // orphaned
+								&& modsToRemove.add(m)) {
+							if (selectedMods.get(m.getId()) == m) return false;
+							queue.add(m);
+						}
+					}
+				} while ((parent = queue.poll()) != null);
+
+				for (ModCandidateImpl m : modsToRemove) {
+					if (m != mod) removeMod0(m);
+				}
+			}
+
+			return removeMod0(mod);
+		}
+
+		private boolean removeMod0(ModCandidateImpl mod) {
+			List<ModCandidateImpl> mods = modsById.get(mod.getId());
+			boolean removed = mods != null && mods.remove(mod)
+					|| addedMods.remove(mod);
+
+			if (removed) {
+				for (ModCandidateImpl m : mod.getContainingMods()) {
+					m.getContainedMods().remove(mod);
+				}
+
+				for (ModCandidateImpl m : mod.getContainedMods()) {
+					m.getContainingMods().remove(mod);
+				}
+			}
+
+			return removed;
 		}
 	}
 

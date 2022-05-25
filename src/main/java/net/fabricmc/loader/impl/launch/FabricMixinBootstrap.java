@@ -37,8 +37,8 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
-import net.fabricmc.loader.impl.LoaderPluginApiImpl;
-import net.fabricmc.loader.impl.LoaderPluginApiImpl.MixinConfigEntry;
+import net.fabricmc.loader.impl.LoaderExtensionApiImpl;
+import net.fabricmc.loader.impl.LoaderExtensionApiImpl.MixinConfigEntry;
 import net.fabricmc.loader.impl.ModContainerImpl;
 import net.fabricmc.loader.impl.launch.knot.MixinServiceKnot;
 import net.fabricmc.loader.impl.launch.knot.MixinServiceKnotBootstrap;
@@ -99,17 +99,17 @@ public final class FabricMixinBootstrap {
 			}
 		}
 
-		for (MixinConfigEntry entry : LoaderPluginApiImpl.getMixinConfigs()) {
+		for (MixinConfigEntry entry : LoaderExtensionApiImpl.getMixinConfigs()) {
 			ModContainerImpl mod = loader.getModInternal(entry.modId);
-			if (mod == null) throw new RuntimeException(String.format("Unknown mod %s added through plugin API by %s", entry.modId, entry.pluginModId));
+			if (mod == null) throw new RuntimeException(String.format("Unknown mod %s added through plugin API by %s", entry.modId, entry.extensionModId));
 
 			ModContainerImpl prev = configToModMap.putIfAbsent(entry.location, mod);
-			if (prev != null) throw new RuntimeException(String.format("Non-unique Mixin config name %s used by the mods %s and %s (through plugin %s)", entry.location, prev.getId(), entry.modId, entry.pluginModId));
+			if (prev != null) throw new RuntimeException(String.format("Non-unique Mixin config name %s used by the mods %s and %s (through plugin %s)", entry.location, prev.getId(), entry.modId, entry.extensionModId));
 
 			try {
 				Mixins.addConfiguration(entry.location);
 			} catch (Throwable t) {
-				throw new RuntimeException(String.format("Error creating Mixin config %s for mod %s through plugin %s", entry.location, entry.modId, entry.pluginModId), t);
+				throw new RuntimeException(String.format("Error creating Mixin config %s for mod %s through plugin %s", entry.location, entry.modId, entry.extensionModId), t);
 			}
 		}
 

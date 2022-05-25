@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.fabricmc.loader.api.plugin;
+package net.fabricmc.loader.api.extension;
 
 import java.util.Collection;
 

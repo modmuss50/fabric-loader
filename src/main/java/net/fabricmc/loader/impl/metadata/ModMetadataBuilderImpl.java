@@ -28,6 +28,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.extension.ModMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
@@ -37,7 +38,6 @@ import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
-import net.fabricmc.loader.api.plugin.ModMetadataBuilder;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.EntrypointMetadataImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.IconEntry;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MapIconEntry;
