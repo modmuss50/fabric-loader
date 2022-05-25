@@ -629,7 +629,7 @@ final class ModSolver {
 
 					// only pull IF_RECOMMENDED or encompassing in
 					for (Iterator<DomainObject> it = suitableMods.iterator(); it.hasNext(); ) {
-						ModCandidateImpl m  = (ModCandidateImpl) it.next();
+						ModCandidateImpl m = (ModCandidateImpl) it.next();
 
 						if (!m.enableGreedyLoad || m.getLoadCondition().ordinal() > ModLoadCondition.IF_RECOMMENDED.ordinal()) {
 							it.remove();
@@ -749,7 +749,7 @@ final class ModSolver {
 
 					// only pull IF_RECOMMENDED or encompassing in
 					for (Iterator<DomainObject> it = suitableMods.iterator(); it.hasNext(); ) {
-						ModCandidateImpl m  = (ModCandidateImpl) it.next();
+						ModCandidateImpl m = (ModCandidateImpl) it.next();
 
 						if (!m.enableGreedyLoad || m.getLoadCondition().ordinal() > ModLoadCondition.IF_RECOMMENDED.ordinal()) {
 							it.remove();

@@ -92,6 +92,7 @@ public class ModResolver {
 		// phase sorting
 
 		PhaseSorting<String, ModCandidateImpl> sorting = new PhaseSorting<>();
+		LoadPhases.setDefaultOrder(sorting);
 
 		for (ModCandidateImpl mod : context.allModsSorted) {
 			sorting.add(mod.getMetadata().getLoadPhase(), mod);
