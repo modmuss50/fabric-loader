@@ -43,6 +43,10 @@ public interface VersionPredicate extends Predicate<Version> {
 		Version getReferenceVersion();
 	}
 
+	static VersionPredicate any() {
+		return VersionPredicateParser.any();
+	}
+
 	static VersionPredicate parse(String predicate) throws VersionParsingException {
 		return VersionPredicateParser.parse(predicate);
 	}

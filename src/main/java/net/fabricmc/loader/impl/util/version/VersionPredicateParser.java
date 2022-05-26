@@ -35,7 +35,13 @@ import net.fabricmc.loader.api.metadata.version.VersionPredicate.PredicateTerm;
 public final class VersionPredicateParser {
 	private static final VersionComparisonOperator[] OPERATORS = VersionComparisonOperator.values();
 
+	public static VersionPredicate any() {
+		return AnyVersionPredicate.INSTANCE;
+	}
+
 	public static VersionPredicate parse(String predicate) throws VersionParsingException {
+		if (predicate.isEmpty() || predicate.equals("*")) return AnyVersionPredicate.INSTANCE;
+
 		List<SingleVersionPredicate> predicateList = new ArrayList<>();
 
 		for (String s : predicate.split(" ")) {

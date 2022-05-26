@@ -16,6 +16,10 @@
 
 package net.fabricmc.loader.impl.metadata;
 
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,6 +32,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
@@ -36,7 +41,6 @@ import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
-import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.EntrypointMetadataImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.IconEntry;
@@ -48,17 +52,17 @@ import net.fabricmc.loader.impl.metadata.ModMetadataImpl.SingleIconEntry;
 public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	static final String DEFAULT_ENTRYPOINT_ADAPTER = "default";
 
-	private final String id;
-	private final Version version;
+	String id;
+	Version version;
 
 	// Optional (id provides)
-	private final List<ProvidedMod> provides = new ArrayList<>();
+	final List<ProvidedModImpl> providedMods = new ArrayList<>();
 
 	// Optional (mod loading)
 	ModEnvironment environment = ModEnvironment.UNIVERSAL; // Default is always universal
-	Map<String, List<EntrypointMetadata>> entrypoints = new HashMap<>();
-	List<NestedJarEntry> jars = new ArrayList<>();
-	List<MixinEntry> mixins = new ArrayList<>();
+	final Map<String, List<EntrypointMetadata>> entrypoints = new HashMap<>();
+	final List<NestedJarEntry> nestedMods = new ArrayList<>();
+	final List<MixinEntry> mixins = new ArrayList<>();
 	String accessWidener = null;
 
 	// Optional (dependency resolution)
@@ -67,34 +71,57 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	// Optional (metadata)
 	String name = null;
 	String description = null;
-	List<Person> authors = new ArrayList<>();
-	List<Person> contributors = new ArrayList<>();
+	final List<Person> authors = new ArrayList<>();
+	final List<Person> contributors = new ArrayList<>();
 	ContactInformation contact = null;
-	List<String> license = new ArrayList<>();
-	SortedMap<Integer, String> icons = new TreeMap<>(Comparator.naturalOrder());;
+	final List<String> licenses = new ArrayList<>();
+	final SortedMap<Integer, String> icons = new TreeMap<>(Comparator.naturalOrder());;
 
 	// Optional (language adapter providers)
-	Map<String, String> languageAdapters = new HashMap<>();
+	final Map<String, String> languageAdapters = new HashMap<>();
 
 	// Optional (custom values)
-	Map<String, CustomValue> customValues = new HashMap<>();
+	final Map<String, CustomValue> customValues = new HashMap<>();
 
-	public ModMetadataBuilderImpl(String id, Version version) {
-		this.id = id;
-		this.version = version;
-	}
+	public ModMetadataBuilderImpl() { }
 
 	@Override
-	public ModMetadataBuilder provides(String modId, /* @Nullable */ Version version, boolean exclusive) {
-		Objects.requireNonNull(modId, "null modId");
-
-		provides.add(new ProvidedModImpl(modId, version != null ? version : this.version, exclusive));
+	public ModMetadataBuilder setId(String modId) {
+		this.id = modId;
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder environment(ModEnvironment environment) {
+	public ModMetadataBuilder setVersion(String version) throws VersionParsingException {
+		return setVersion(Version.parse(version));
+	}
+
+	@Override
+	public ModMetadataBuilder setVersion(Version version) {
+		// replace default version in provided mods if it points to the old version
+		for (ProvidedModImpl mod : providedMods) {
+			if (mod.getVersion() == this.version) { // identity cmp is fine because it was defaulted to this.version
+				mod.setVersion(version);
+			}
+		}
+
+		this.version = version;
+
+		return this;
+	}
+
+	@Override
+	public ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive) {
+		Objects.requireNonNull(modId, "null modId");
+
+		providedMods.add(new ProvidedModImpl(modId, version != null ? version : this.version, exclusive));
+
+		return this;
+	}
+
+	@Override
+	public ModMetadataBuilder setEnvironment(ModEnvironment environment) {
 		Objects.requireNonNull(environment, "null environment");
 
 		this.environment = environment;
@@ -103,7 +130,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder entrypoint(String key, String value, /* @Nullable */ String adapter) {
+	public ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter) {
 		Objects.requireNonNull(key, "null key");
 		Objects.requireNonNull(value, "null value");
 
@@ -114,28 +141,26 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder nestedJar(String location) {
+	public ModMetadataBuilder addNestedMod(String location) {
 		Objects.requireNonNull(location, "null location");
 
-		jars.add(new ModMetadataImpl.NestedJarEntryImpl(location));
+		nestedMods.add(new ModMetadataImpl.NestedJarEntryImpl(location));
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder mixinConfig(String location, ModEnvironment environment) {
+	public ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment) {
 		Objects.requireNonNull(location, "null location");
-		Objects.requireNonNull(environment, "null environment");
 
-		mixins.add(new MixinEntry(location, environment));
+		mixins.add(new MixinEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL));
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder accessWidener(String location) {
+	public ModMetadataBuilder setAccessWidener(String location) {
 		Objects.requireNonNull(location, "null location");
-		if (accessWidener != null && !accessWidener.equals(location)) throw new UnsupportedOperationException("support for multiple access widener files is not implemented");
 
 		accessWidener = location;
 
@@ -143,7 +168,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder dependency(Kind kind, String modId, Collection<VersionPredicate> versionOptions) {
+	public ModMetadataBuilder addDependency(Kind kind, String modId, Collection<VersionPredicate> versionOptions) {
 		Objects.requireNonNull(kind, "null kind");
 		Objects.requireNonNull(modId, "null modId");
 		Objects.requireNonNull(versionOptions, "null versionOptions");
@@ -154,21 +179,21 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder name(String name) {
+	public ModMetadataBuilder setName(String name) {
 		this.name = name;
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder description(String description) {
+	public ModMetadataBuilder setDescription(String description) {
 		this.description = description;
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder author(String name, /* @Nullable */ ContactInformation contact) {
+	public ModMetadataBuilder addAuthor(String name, /* @Nullable */ ContactInformation contact) {
 		Objects.requireNonNull(name, "null name");
 
 		authors.add(new ContactInfoBackedPerson(name, contact != null ? contact : ContactInformation.EMPTY));
@@ -177,7 +202,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder contributor(String name, /* @Nullable */ ContactInformation contact) {
+	public ModMetadataBuilder addContributor(String name, /* @Nullable */ ContactInformation contact) {
 		Objects.requireNonNull(name, "null name");
 
 		contributors.add(new ContactInfoBackedPerson(name, contact != null ? contact : ContactInformation.EMPTY));
@@ -186,23 +211,23 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder contact(ContactInformation contact) {
+	public ModMetadataBuilder setContact(/* @Nullable */ ContactInformation contact) {
 		this.contact = contact;
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder license(String name) {
+	public ModMetadataBuilder addLicense(String name) {
 		Objects.requireNonNull(name, "null name");
 
-		this.license.add(name);
+		this.licenses.add(name);
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder icon(int size, String location) {
+	public ModMetadataBuilder addIcon(int size, String location) {
 		Objects.requireNonNull(location, "null location");
 
 		if (size <= 0) {
@@ -218,7 +243,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder languageAdapter(String name, String cls) {
+	public ModMetadataBuilder addLanguageAdapter(String name, String cls) {
 		Objects.requireNonNull(name, "null name");
 		Objects.requireNonNull(cls, "null cls");
 
@@ -228,7 +253,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder customValue(String key, CustomValue value) {
+	public ModMetadataBuilder addCustomValue(String key, CustomValue value) {
 		Objects.requireNonNull(key, "null key");
 		Objects.requireNonNull(value, "null value");
 
@@ -238,7 +263,29 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
+	public void toJson(Writer writer) throws IOException {
+		checkInitialized();
+
+		ModMetadataWriter.write(this, writer);
+	}
+
+	@Override
+	public String toJson() {
+		StringWriter sw = new StringWriter(100);
+
+		try {
+			toJson(sw);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e); // shouldn't happen..
+		}
+
+		return sw.toString();
+	}
+
+	@Override
 	public ModMetadata build() {
+		checkInitialized();
+
 		IconEntry icon;
 
 		if (icons.isEmpty()) {
@@ -251,15 +298,20 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 
 		return new ModMetadataImpl(ModMetadataParser.LATEST_VERSION,
 				id, version,
-				provides,
-				environment, entrypoints, jars,
+				providedMods,
+				environment, entrypoints, nestedMods,
 				mixins, accessWidener,
 				dependencies,
 				name, description,
-				authors, contributors, contact, license, icon,
+				authors, contributors, contact, licenses, icon,
 				languageAdapters,
 				customValues,
 				Collections.emptyList());
+	}
+
+	private void checkInitialized() {
+		if (id == null) throw new IllegalStateException("modId wasn't set");
+		if (version == null) throw new IllegalStateException("version wasn't set");
 	}
 
 	public static final class ContactInformationBuilderImpl implements ContactInformationBuilder {

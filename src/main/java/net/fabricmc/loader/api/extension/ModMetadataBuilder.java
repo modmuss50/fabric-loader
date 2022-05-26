@@ -16,6 +16,8 @@
 
 package net.fabricmc.loader.api.extension;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.Collection;
 
 import net.fabricmc.loader.api.Version;
@@ -30,36 +32,38 @@ import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ContactInformationBuilderImpl;
 
 public interface ModMetadataBuilder {
-	static ModMetadataBuilder create(String modId, String version) throws VersionParsingException {
-		return create(modId, Version.parse(version));
+	static ModMetadataBuilder create() {
+		return new ModMetadataBuilderImpl();
 	}
 
-	static ModMetadataBuilder create(String modId, Version version) {
-		return new ModMetadataBuilderImpl(modId, version);
-	}
+	ModMetadataBuilder setId(String modId);
+	ModMetadataBuilder setVersion(String version) throws VersionParsingException;
+	ModMetadataBuilder setVersion(Version version);
 
-	ModMetadataBuilder provides(String modId, /* @Nullable */ Version version, boolean exclusive);
+	ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive);
 
-	ModMetadataBuilder environment(ModEnvironment environment);
-	ModMetadataBuilder entrypoint(String key, String value, /* @Nullable */ String adapter);
-	ModMetadataBuilder nestedJar(String location);
-	ModMetadataBuilder mixinConfig(String location, ModEnvironment environment);
-	ModMetadataBuilder accessWidener(String location);
+	ModMetadataBuilder setEnvironment(ModEnvironment environment);
+	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter);
+	ModMetadataBuilder addNestedMod(String location);
+	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment);
+	ModMetadataBuilder setAccessWidener(String location);
 
-	ModMetadataBuilder dependency(ModDependency.Kind kind, String modId, Collection<VersionPredicate> versionOptions);
+	ModMetadataBuilder addDependency(ModDependency.Kind kind, String modId, Collection<VersionPredicate> versionOptions);
 
-	ModMetadataBuilder name(String name);
-	ModMetadataBuilder description(String description);
-	ModMetadataBuilder author(String name, /* @Nullable */ ContactInformation contact);
-	ModMetadataBuilder contributor(String name, /* @Nullable */ ContactInformation contact);
-	ModMetadataBuilder contact(ContactInformation contact);
-	ModMetadataBuilder license(String name);
-	ModMetadataBuilder icon(int size, String location);
+	ModMetadataBuilder setName(String name);
+	ModMetadataBuilder setDescription(String description);
+	ModMetadataBuilder addAuthor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addContributor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder setContact(/* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addLicense(String name);
+	ModMetadataBuilder addIcon(int size, String location);
 
-	ModMetadataBuilder languageAdapter(String name, String cls);
+	ModMetadataBuilder addLanguageAdapter(String name, String cls);
 
-	ModMetadataBuilder customValue(String key, CustomValue value);
+	ModMetadataBuilder addCustomValue(String key, CustomValue value);
 
+	void toJson(Writer writer) throws IOException;
+	String toJson();
 	ModMetadata build();
 
 	interface ContactInformationBuilder {

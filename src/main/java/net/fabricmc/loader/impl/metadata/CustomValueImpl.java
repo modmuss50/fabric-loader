@@ -141,6 +141,18 @@ public abstract class CustomValueImpl implements CustomValue {
 	}
 
 	@Override
+	public int getAsInteger() {
+		double value;
+		int ret;
+
+		if (this instanceof NumberImpl && (value = ((NumberImpl) this).value.doubleValue()) == (ret = (int) value)) {
+			return ret;
+		} else {
+			throw new ClassCastException("can't convert "+getType().name()+" to int");
+		}
+	}
+
+	@Override
 	public final boolean getAsBoolean() {
 		if (this instanceof BooleanImpl) {
 			return ((BooleanImpl) this).value;
@@ -185,6 +197,11 @@ public abstract class CustomValueImpl implements CustomValue {
 		public Iterator<Entry<String, CustomValue>> iterator() {
 			return entries.entrySet().iterator();
 		}
+
+		@Override
+		public String toString() {
+			return entries.toString();
+		}
 	}
 
 	private static final class ArrayImpl extends CustomValueImpl implements CvArray {
@@ -213,6 +230,11 @@ public abstract class CustomValueImpl implements CustomValue {
 		public Iterator<CustomValue> iterator() {
 			return entries.iterator();
 		}
+
+		@Override
+		public String toString() {
+			return entries.toString();
+		}
 	}
 
 	private static final class StringImpl extends CustomValueImpl {
@@ -225,6 +247,11 @@ public abstract class CustomValueImpl implements CustomValue {
 		@Override
 		public CvType getType() {
 			return CvType.STRING;
+		}
+
+		@Override
+		public String toString() {
+			return value.toString();
 		}
 	}
 
@@ -239,6 +266,11 @@ public abstract class CustomValueImpl implements CustomValue {
 		public CvType getType() {
 			return CvType.NUMBER;
 		}
+
+		@Override
+		public String toString() {
+			return value.toString();
+		}
 	}
 
 	private static final class BooleanImpl extends CustomValueImpl {
@@ -252,12 +284,22 @@ public abstract class CustomValueImpl implements CustomValue {
 		public CvType getType() {
 			return CvType.BOOLEAN;
 		}
+
+		@Override
+		public String toString() {
+			return value ? "true" : "false";
+		}
 	}
 
 	private static final class NullImpl extends CustomValueImpl {
 		@Override
 		public CvType getType() {
 			return CvType.NULL;
+		}
+
+		@Override
+		public String toString() {
+			return "null";
 		}
 	}
 }

@@ -402,7 +402,7 @@ final class V1ModMetadataParser {
 				reader.beginObject();
 
 				String config = null;
-				ModEnvironment environment = null;
+				ModEnvironment environment = ModEnvironment.UNIVERSAL; // Default to universal
 
 				while (reader.hasNext()) {
 					final String key = reader.nextName();
@@ -426,10 +426,6 @@ final class V1ModMetadataParser {
 				}
 
 				reader.endObject();
-
-				if (environment == null) {
-					environment = ModEnvironment.UNIVERSAL; // Default to universal
-				}
 
 				if (config == null) {
 					throw new ParseMetadataException.MissingField("Missing mandatory key 'config' in mixin entry!");
@@ -507,7 +503,7 @@ final class V1ModMetadataParser {
 				reader.beginObject();
 				// Name is required
 				String personName = null;
-				ContactInformation contactInformation = null;
+				ContactInformation contactInformation = ContactInformation.EMPTY; // Empty if not specified
 
 				while (reader.hasNext()) {
 					final String key = reader.nextName();
@@ -535,10 +531,6 @@ final class V1ModMetadataParser {
 
 				if (personName == null) {
 					throw new ParseMetadataException.MissingField("Person object must have a 'name' field!");
-				}
-
-				if (contactInformation == null) {
-					contactInformation = ContactInformation.EMPTY; // Empty if not specified
 				}
 
 				people.add(new ContactInfoBackedPerson(personName, contactInformation));
@@ -610,7 +602,6 @@ final class V1ModMetadataParser {
 
 			while (reader.hasNext()) {
 				String key = reader.nextName();
-
 				int size;
 
 				try {

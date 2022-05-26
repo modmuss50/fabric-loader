@@ -47,7 +47,7 @@ public interface CustomValue {
 	CvArray getAsArray();
 
 	/**
-	 * Returns this value as a {@link CvType#STRING}.
+	 * Returns this value as a {@link String}.
 	 *
 	 * @return this value
 	 * @throws ClassCastException if this value is not a string
@@ -55,12 +55,20 @@ public interface CustomValue {
 	String getAsString();
 
 	/**
-	 * Returns this value as a {@link CvType#NUMBER}.
+	 * Returns this value as a {@link Number}.
 	 *
 	 * @return this value
 	 * @throws ClassCastException if this value is not a number
 	 */
 	Number getAsNumber();
+
+	/**
+	 * Returns this value as an integer.
+	 *
+	 * @return this value
+	 * @throws ClassCastException if this value is not an integer or out of range
+	 */
+	int getAsInteger();
 
 	/**
 	 * Returns this value as a {@link CvType#BOOLEAN}.

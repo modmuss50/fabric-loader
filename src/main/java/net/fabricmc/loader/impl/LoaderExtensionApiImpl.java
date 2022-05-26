@@ -70,21 +70,23 @@ public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 	}
 
 	@Override
-	public ModCandidate readMod(Path path) {
+	public ModCandidate readMod(Path path, /*@Nullable*/ String namespace) {
 		Objects.requireNonNull(path, "null path");
 
-		return readMod(Collections.singletonList(path));
+		return readMod(Collections.singletonList(path), namespace);
 	}
 
 	@Override
-	public ModCandidate readMod(List<Path> paths) {
+	public ModCandidate readMod(List<Path> paths, /*@Nullable*/ String namespace) {
 		checkFrozen();
 		if (paths.isEmpty()) throw new IllegalArgumentException("empty paths");
 
 		ModDiscoverer discoverer = FabricLoaderImpl.INSTANCE.getDiscoverer();
 		if (discoverer == null) throw new IllegalStateException("createMod is only available during mod discovery");
 
-		return discoverer.scan(normalizePaths(paths), false);
+		boolean remap = namespace != null && !namespace.equals(FabricLauncherBase.getLauncher().getTargetNamespace());
+
+		return discoverer.scan(normalizePaths(paths), remap);
 	}
 
 	@Override

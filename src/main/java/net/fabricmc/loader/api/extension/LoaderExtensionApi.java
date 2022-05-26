@@ -33,8 +33,8 @@ public interface LoaderExtensionApi { // one instance per extension, binding the
 	void addPathToCacheKey(Path path);
 	void setExternalModSource(); // referenced loader extension must run every time, even if all cache keys match
 
-	ModCandidate readMod(Path path);
-	ModCandidate readMod(List<Path> paths);
+	ModCandidate readMod(Path path, /*@Nullable*/ String namespace);
+	ModCandidate readMod(List<Path> paths, /*@Nullable*/ String namespace);
 	ModCandidate createMod(List<Path> paths, ModMetadata metadata, Collection<ModCandidate> nestedMods);
 
 	Collection<ModCandidate> getMods(String modId);

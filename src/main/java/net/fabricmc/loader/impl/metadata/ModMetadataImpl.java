@@ -77,7 +77,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private final Collection<String> oldInitializers;
 
 	ModMetadataImpl(int schemaVersion,
-			String id, Version version, Collection<ProvidedMod> providedMods,
+			String id, Version version, Collection<? extends ProvidedMod> providedMods,
 			ModEnvironment environment, Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
 			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
 			Collection<ModDependency> dependencies,
@@ -295,7 +295,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	static final class ProvidedModImpl implements ProvidedMod {
 		private final String id;
-		private final Version version;
+		private Version version;
 		private final boolean exclusive;
 
 		ProvidedModImpl(String id, Version version, boolean exclusive) {
@@ -312,6 +312,10 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		@Override
 		public Version getVersion() {
 			return version;
+		}
+
+		void setVersion(Version version) {
+			this.version = version;
 		}
 
 		@Override
@@ -359,8 +363,8 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	static final class MixinEntry {
-		private final String config;
-		private final ModEnvironment environment;
+		final String config;
+		final ModEnvironment environment;
 
 		MixinEntry(String config, ModEnvironment environment) {
 			this.config = config;
