@@ -64,6 +64,31 @@ final class ModMetadataWriter {
 			jw.name("environment").value(serializeEnvironment(meta.environment));
 		}
 
+		if (!meta.entrypoints.isEmpty()) {
+			jw.name("entrypoints");
+			jw.beginObject();
+
+			for (Map.Entry<String, List<EntrypointMetadata>> entry : meta.entrypoints.entrySet()) {
+				jw.name(entry.getKey());
+				jw.beginArray();
+
+				for (EntrypointMetadata entrypoint : entry.getValue()) {
+					if (entrypoint.getAdapter().equals(ModMetadataBuilderImpl.DEFAULT_ENTRYPOINT_ADAPTER)) {
+						jw.value(entrypoint.getValue());
+					} else {
+						jw.beginObject();
+						jw.name("value").value(entrypoint.getValue());
+						jw.name("adapter").value(entrypoint.getAdapter());
+						jw.endObject();
+					}
+				}
+
+				jw.endArray();
+			}
+
+			jw.endObject();
+		}
+
 		if (!meta.nestedMods.isEmpty()) {
 			jw.name("jars");
 			jw.beginArray();
