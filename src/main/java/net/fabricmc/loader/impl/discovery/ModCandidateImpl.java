@@ -152,7 +152,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return metadata.getVersion();
 	}
 
-	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+	public Collection<? extends ProvidedMod> getAdditionallyProvidedMods() {
 		return metadata.getAdditionallyProvidedMods();
 	}
 

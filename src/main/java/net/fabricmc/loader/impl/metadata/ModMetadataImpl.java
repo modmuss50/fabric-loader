@@ -21,8 +21,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
-import java.util.SortedMap;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
@@ -32,7 +32,6 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
-import net.fabricmc.loader.impl.discovery.LoadPhases;
 
 final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMetadata {
 	static final IconEntry NO_ICON = size -> Optional.empty();
@@ -48,6 +47,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	// Optional (mod loading)
 	private final ModEnvironment environment;
+	private final String loadPhase;
 	private final Map<String, List<EntrypointMetadata>> entrypoints;
 	private final Collection<NestedJarEntry> jars;
 	private final Collection<MixinEntry> mixins;
@@ -78,7 +78,8 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	ModMetadataImpl(int schemaVersion,
 			String id, Version version, Collection<? extends ProvidedMod> providedMods,
-			ModEnvironment environment, Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
+			ModEnvironment environment, String loadPhase,
+			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
 			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
 			Collection<ModDependency> dependencies,
 			/* @Nullable */ String name, /* @Nullable */String description,
@@ -91,6 +92,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		this.version = version;
 		this.providedMods = unmodifiable(providedMods);
 		this.environment = environment;
+		this.loadPhase = loadPhase;
 		this.entrypoints = unmodifiable(entrypoints);
 		this.jars = unmodifiable(jars);
 		this.mixins = unmodifiable(mixins);
@@ -178,7 +180,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	@Override
 	public String getLoadPhase() {
-		return LoadPhases.DEFAULT;
+		return loadPhase;
 	}
 
 	@Override
@@ -293,6 +295,11 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		return this.entrypoints.keySet();
 	}
 
+	@Override
+	public String toString() {
+		return String.format("%s %s", id, version);
+	}
+
 	static final class ProvidedModImpl implements ProvidedMod {
 		private final String id;
 		private Version version;
@@ -390,25 +397,20 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	static final class MapIconEntry implements IconEntry {
-		private final SortedMap<Integer, String> icons;
+		private final NavigableMap<Integer, String> icons;
 
-		MapIconEntry(SortedMap<Integer, String> icons) {
+		MapIconEntry(NavigableMap<Integer, String> icons) {
 			this.icons = icons;
 		}
 
 		@Override
 		public Optional<String> getIconPath(int size) {
-			int iconValue = -1;
+			if (icons.isEmpty()) return Optional.empty();
 
-			for (int i : icons.keySet()) {
-				iconValue = i;
+			Map.Entry<Integer, String> entry = icons.ceilingEntry(size);
+			if (entry == null) entry = icons.lastEntry();
 
-				if (iconValue >= size) {
-					break;
-				}
-			}
-
-			return Optional.of(icons.get(iconValue));
+			return Optional.of(entry.getValue());
 		}
 	}
 }

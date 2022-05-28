@@ -53,7 +53,7 @@ public interface ModMetadata {
 
 	@Deprecated
 	default Collection<String> getProvides() {
-		Collection<ProvidedMod> mods = getAdditionallyProvidedMods();
+		Collection<? extends ProvidedMod> mods = getAdditionallyProvidedMods();
 		if (mods.isEmpty()) return Collections.emptyList();
 
 		List<String> ret = new ArrayList<>(mods.size());
@@ -73,7 +73,7 @@ public interface ModMetadata {
 	 *
 	 * @return additionally provided mods (excluding this mod)
 	 */
-	Collection<ProvidedMod> getAdditionallyProvidedMods();
+	Collection<? extends ProvidedMod> getAdditionallyProvidedMods();
 
 	/**
 	 * Returns the mod's version.
@@ -217,5 +217,7 @@ public interface ModMetadata {
 	 * @deprecated Use {@link #containsCustomValue} instead, this will be removed (can't expose GSON types)!
 	 */
 	@Deprecated
-	boolean containsCustomElement(String key);
+	default boolean containsCustomElement(String key) {
+		return containsCustomValue(key);
+	}
 }

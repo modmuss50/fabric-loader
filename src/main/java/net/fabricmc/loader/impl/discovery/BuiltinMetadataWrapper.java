@@ -59,7 +59,7 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	}
 
 	@Override
-	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+	public Collection<? extends ProvidedMod> getAdditionallyProvidedMods() {
 		return parent.getAdditionallyProvidedMods();
 	}
 

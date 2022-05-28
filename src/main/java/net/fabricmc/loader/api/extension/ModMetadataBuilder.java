@@ -27,11 +27,12 @@ import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModMetadata;
+import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ContactInformationBuilderImpl;
 
-public interface ModMetadataBuilder {
+public interface ModMetadataBuilder extends ModMetadata {
 	static ModMetadataBuilder create() {
 		return new ModMetadataBuilderImpl();
 	}
@@ -43,6 +44,7 @@ public interface ModMetadataBuilder {
 	ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive);
 
 	ModMetadataBuilder setEnvironment(ModEnvironment environment);
+	ModMetadataBuilder setLoadPhase(String loadPhase);
 	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter);
 	ModMetadataBuilder addNestedMod(String location);
 	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment);
@@ -53,9 +55,12 @@ public interface ModMetadataBuilder {
 	ModMetadataBuilder setName(String name);
 	ModMetadataBuilder setDescription(String description);
 	ModMetadataBuilder addAuthor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addAuthor(Person person);
 	ModMetadataBuilder addContributor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addContributor(Person person);
 	ModMetadataBuilder setContact(/* @Nullable */ ContactInformation contact);
 	ModMetadataBuilder addLicense(String name);
+	ModMetadataBuilder setIcon(String location);
 	ModMetadataBuilder addIcon(int size, String location);
 
 	ModMetadataBuilder addLanguageAdapter(String name, String cls);
@@ -64,6 +69,7 @@ public interface ModMetadataBuilder {
 
 	void toJson(Writer writer) throws IOException;
 	String toJson();
+
 	ModMetadata build();
 
 	interface ContactInformationBuilder {

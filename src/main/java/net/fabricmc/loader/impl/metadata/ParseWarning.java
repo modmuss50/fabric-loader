@@ -16,19 +16,21 @@
 
 package net.fabricmc.loader.impl.metadata;
 
+import net.fabricmc.loader.impl.lib.gson.JsonReader;
+
 final class ParseWarning {
 	private final int line;
 	private final int column;
 	private final String key;
 	private final String reason;
 
-	ParseWarning(int line, int column, String key) {
-		this(line, column, key, null);
+	ParseWarning(JsonReader reader, String key) {
+		this(reader, key, null);
 	}
 
-	ParseWarning(int line, int column, String key, /* @Nullable */ String reason) {
-		this.line = line;
-		this.column = column;
+	ParseWarning(JsonReader reader, String key, /* @Nullable */ String reason) {
+		this.line = reader.getLineNumber();
+		this.column = reader.getColumn();
 		this.key = key;
 		this.reason = reason;
 	}

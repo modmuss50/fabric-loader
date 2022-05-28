@@ -37,6 +37,7 @@ import net.fabricmc.loader.impl.discovery.ModDiscoverer;
 import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
+import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 
 public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 	static final List<Function<ModDependency, ModCandidate>> modSources = new ArrayList<>(); // TODO: use this
@@ -100,6 +101,8 @@ public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 
 		if (metadata instanceof LoaderModMetadata) {
 			loaderMeta = (LoaderModMetadata) metadata;
+		} else if (metadata instanceof ModMetadataBuilderImpl) {
+			loaderMeta = ((ModMetadataBuilderImpl) metadata).build();
 		} else { // TODO: wrap other types
 			throw new IllegalArgumentException("invalid ModMetadata class: "+metadata.getClass());
 		}
