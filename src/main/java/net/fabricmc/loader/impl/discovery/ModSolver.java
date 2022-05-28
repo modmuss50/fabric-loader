@@ -834,6 +834,32 @@ final class ModSolver {
 		for (Map.Entry<String, List<ModCandidateImpl>> entry : context.modsById.entrySet()) {
 			String id = entry.getKey();
 			List<ModCandidateImpl> variants = entry.getValue();
+
+			// check for already selected mod with same id (usually involves provided mods)
+
+			ModCandidateImpl selMod = context.selectedMods.get(id);
+
+			if (selMod != null) {
+				List<ModCandidateImpl> newVariants = new ArrayList<>(variants.size() + 1);
+
+				if (ModResolver.hasExclusiveId(selMod, id)) {
+					for (ModCandidateImpl mod : variants) {
+						if (ModResolver.hasExclusiveId(mod, id)) {
+							dependencyHelper.setFalse(mod, new Explanation(ErrorKind.UNIQUE_ID_OTHER_PRESELECTD, id));
+						} else {
+							newVariants.add(mod);
+						}
+					}
+
+					if (newVariants.isEmpty()) continue;
+				} else {
+					newVariants.addAll(variants);
+				}
+
+				newVariants.add(selMod);
+				variants = newVariants;
+			}
+
 			ModCandidateImpl firstMod = variants.get(0);
 
 			// force-load root mod

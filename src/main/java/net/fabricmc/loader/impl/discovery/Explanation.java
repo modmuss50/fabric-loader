@@ -123,7 +123,11 @@ class Explanation implements Comparable<Explanation> {
 		/**
 		 * Requirement to load at most one mod per id (including provides).
 		 */
-		UNIQUE_ID(false);
+		UNIQUE_ID(false),
+		/**
+		 * Requirement to load at most one mod per id (including provides) while another mod with the id is preselected.
+		 */
+		UNIQUE_ID_OTHER_PRESELECTD(false);
 
 		final boolean isDependencyError;
 
