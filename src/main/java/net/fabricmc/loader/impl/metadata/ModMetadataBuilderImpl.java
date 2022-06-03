@@ -17,6 +17,7 @@
 package net.fabricmc.loader.impl.metadata;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.io.Writer;
@@ -42,6 +43,7 @@ import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.discovery.LoadPhases;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.EntrypointMetadataImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.IconEntry;
@@ -398,6 +400,15 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		customValues.put(key, value);
 
 		return this;
+	}
+
+	@Override
+	public void fromJson(Reader reader) throws IOException {
+		try {
+			ModMetadataParser.readModMetadata(reader, FabricLoaderImpl.INSTANCE.isDevelopmentEnvironment(), new ArrayList<>(), this);
+		} catch (ParseMetadataException e) {
+			throw new IOException(e);
+		}
 	}
 
 	@Override

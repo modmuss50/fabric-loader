@@ -19,6 +19,7 @@ package net.fabricmc.loader.impl.metadata;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,7 +44,16 @@ public final class ModMetadataParser {
 			VersionOverrides versionOverrides, DependencyOverrides depOverrides, boolean isDevelopment) throws ParseMetadataException {
 		try {
 			ModMetadataBuilderImpl builder = new ModMetadataBuilderImpl();
-			readModMetadata(is, isDevelopment, builder);
+			List<ParseWarning> warnings = new ArrayList<>();
+
+			readModMetadata(new InputStreamReader(is, StandardCharsets.UTF_8), isDevelopment, warnings, builder);
+
+			// Validate all required fields are present
+			if (builder.getId() == null) throw new ParseMetadataException.MissingField("id");
+			if (builder.getVersion() == null) throw new ParseMetadataException.MissingField("version");
+
+			logWarningMessages(builder.getId(), warnings);
+
 			LoaderModMetadata ret = builder.build();
 
 			versionOverrides.apply(ret);
@@ -62,7 +72,7 @@ public final class ModMetadataParser {
 		}
 	}
 
-	private static void readModMetadata(InputStream is, boolean isDevelopment, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
+	static void readModMetadata(Reader rawReader, boolean isDevelopment, List<ParseWarning> warnings, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
 		// So some context:
 		// Per the json specification, ordering of fields is not typically enforced.
 		// Furthermore we cannot guarantee the `schemaVersion` is the first field in every `fabric.mod.json`
@@ -79,7 +89,7 @@ public final class ModMetadataParser {
 		// Re-read the JSON file.
 		int schemaVersion = 0;
 
-		try (JsonReader reader = new JsonReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+		try (JsonReader reader = new JsonReader(rawReader)) {
 			reader.setRewindEnabled(true);
 
 			if (reader.peek() != JsonToken.BEGIN_OBJECT) {
@@ -104,7 +114,7 @@ public final class ModMetadataParser {
 					if (firstField) {
 						reader.setRewindEnabled(false);
 						// Finish reading the metadata
-						readModMetadata(reader, schemaVersion, builder);
+						readModMetadata(reader, schemaVersion, warnings, builder);
 						reader.endObject();
 
 						return;
@@ -127,7 +137,7 @@ public final class ModMetadataParser {
 			reader.setRewindEnabled(false);
 
 			reader.beginObject();
-			readModMetadata(reader, schemaVersion, builder);
+			readModMetadata(reader, schemaVersion, warnings, builder);
 			reader.endObject();
 
 			if (isDevelopment) {
@@ -136,11 +146,10 @@ public final class ModMetadataParser {
 		}
 	}
 
-	private static void readModMetadata(JsonReader reader, int schemaVersion, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
+	private static void readModMetadata(JsonReader reader, int schemaVersion, List<ParseWarning> warnings, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
 		// don't forget to update LATEST_VERSION!
 
 		builder.setSchemaVersion(schemaVersion);
-		List<ParseWarning> warnings = new ArrayList<>();
 
 		switch (schemaVersion) {
 		case 0:
@@ -157,17 +166,6 @@ public final class ModMetadataParser {
 
 			throw new ParseMetadataException(String.format("Invalid/Unsupported schema version \"%s\" was found", schemaVersion));
 		}
-
-		// Validate all required fields are resolved
-		if (builder.getId() == null) {
-			throw new ParseMetadataException.MissingField("id");
-		}
-
-		if (builder.getVersion() == null) {
-			throw new ParseMetadataException.MissingField("version");
-		}
-
-		ModMetadataParser.logWarningMessages(builder.getId(), warnings);
 	}
 
 	static void logWarningMessages(String id, List<ParseWarning> warnings) {
@@ -183,8 +181,5 @@ public final class ModMetadataParser {
 		}
 
 		Log.warn(LogCategory.METADATA, message.toString());
-	}
-
-	private ModMetadataParser() {
 	}
 }

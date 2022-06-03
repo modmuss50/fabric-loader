@@ -17,6 +17,7 @@
 package net.fabricmc.loader.api.extension;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.io.Writer;
 import java.util.Collection;
 
@@ -67,6 +68,7 @@ public interface ModMetadataBuilder extends ModMetadata {
 
 	ModMetadataBuilder addCustomValue(String key, CustomValue value);
 
+	void fromJson(Reader reader) throws IOException;
 	void toJson(Writer writer) throws IOException;
 	String toJson();
 
