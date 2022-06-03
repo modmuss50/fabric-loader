@@ -54,7 +54,6 @@ public final class Knot extends FabricLauncherBase {
 	protected Map<String, Object> properties = new HashMap<>();
 
 	private KnotClassLoaderInterface classLoader;
-	private boolean isDevelopment;
 	private EnvType envType;
 	private final List<Path> classPath = new ArrayList<>();
 	private GameProvider provider;
@@ -131,20 +130,16 @@ public final class Knot extends FabricLauncherBase {
 		Log.finishBuiltinConfig();
 		Log.info(LogCategory.GAME_PROVIDER, "Loading %s %s with Fabric Loader %s", provider.getGameName(), provider.getRawGameVersion(), FabricLoaderImpl.VERSION);
 
-		isDevelopment = SystemProperties.isSet(SystemProperties.DEVELOPMENT);
-
 		// Setup classloader
 		// TODO: Provide KnotCompatibilityClassLoader in non-exclusive-Fabric pre-1.13 environments?
 		boolean useCompatibility = provider.requiresUrlClassLoader() || SystemProperties.isSet(SystemProperties.USE_COMPAT_CL);
 		classLoader = KnotClassLoaderInterface.create(useCompatibility, isDevelopment(), envType, provider);
 		ClassLoader cl = classLoader.getClassLoader();
-
-		provider.initialize(this);
-
 		Thread.currentThread().setContextClassLoader(cl);
 
 		FabricLoaderImpl loader = FabricLoaderImpl.INSTANCE;
 		loader.setGameProvider(provider);
+		provider.initialize(this);
 		loader.load();
 		loader.freeze();
 
@@ -257,12 +252,6 @@ public final class Knot extends FabricLauncherBase {
 	}
 
 	@Override
-	public String getTargetNamespace() {
-		// TODO: Won't work outside of Yarn
-		return isDevelopment ? "named" : "intermediary";
-	}
-
-	@Override
 	public List<Path> getClassPath() {
 		return classPath;
 	}
@@ -326,11 +315,6 @@ public final class Knot extends FabricLauncherBase {
 	@Override
 	public Manifest getManifest(Path originPath) {
 		return classLoader.getManifest(originPath);
-	}
-
-	@Override
-	public boolean isDevelopment() {
-		return isDevelopment;
 	}
 
 	@Override

@@ -85,7 +85,7 @@ public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 		ModDiscoverer discoverer = FabricLoaderImpl.INSTANCE.getDiscoverer();
 		if (discoverer == null) throw new IllegalStateException("createMod is only available during mod discovery");
 
-		boolean remap = namespace != null && !namespace.equals(FabricLauncherBase.getLauncher().getTargetNamespace());
+		boolean remap = namespace != null && !namespace.equals(FabricLauncherBase.getLauncher().getMappingConfiguration().getRuntimeNamespace());
 
 		return discoverer.scan(normalizePaths(paths), remap);
 	}

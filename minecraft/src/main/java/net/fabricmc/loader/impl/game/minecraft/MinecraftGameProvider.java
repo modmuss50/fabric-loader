@@ -47,6 +47,7 @@ import net.fabricmc.loader.impl.game.minecraft.patch.EntrypointPatch;
 import net.fabricmc.loader.impl.game.minecraft.patch.EntrypointPatchFML125;
 import net.fabricmc.loader.impl.game.patch.GameTransformer;
 import net.fabricmc.loader.impl.launch.FabricLauncher;
+import net.fabricmc.loader.impl.launch.MappingConfiguration;
 import net.fabricmc.loader.impl.metadata.BuiltinModMetadata;
 import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.util.Arguments;
@@ -144,11 +145,6 @@ public class MinecraftGameProvider implements GameProvider {
 		}
 
 		return getLaunchDirectory(arguments);
-	}
-
-	@Override
-	public boolean isObfuscated() {
-		return true; // generally yes...
 	}
 
 	@Override
@@ -293,7 +289,10 @@ public class MinecraftGameProvider implements GameProvider {
 	public void initialize(FabricLauncher launcher) {
 		launcher.setValidParentClassPath(validParentClassPath);
 
-		if (isObfuscated()) {
+		String gameNs = System.getProperty(SystemProperties.GAME_MAPPING_NAMESPACE);
+		if (gameNs == null) gameNs = launcher.isDevelopment() ? MappingConfiguration.NAMED_NAMESPACE : MappingConfiguration.OFFICIAL_NAMESPACE;
+
+		if (!gameNs.equals(launcher.getMappingConfiguration().getRuntimeNamespace())) { // game is obfuscated / in another namespace -> remap
 			Map<String, Path> obfJars = new HashMap<>(3);
 			String[] names = new String[gameJars.size()];
 
@@ -317,6 +316,7 @@ public class MinecraftGameProvider implements GameProvider {
 			}
 
 			obfJars = GameProviderHelper.deobfuscate(obfJars,
+					gameNs,
 					getGameId(), getNormalizedGameVersion(),
 					getLaunchDirectory(),
 					launcher);

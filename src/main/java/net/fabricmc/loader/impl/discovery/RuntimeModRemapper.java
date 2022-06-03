@@ -40,8 +40,8 @@ import net.fabricmc.accesswidener.AccessWidenerReader;
 import net.fabricmc.accesswidener.AccessWidenerRemapper;
 import net.fabricmc.accesswidener.AccessWidenerWriter;
 import net.fabricmc.loader.impl.FormattedException;
-import net.fabricmc.loader.impl.launch.FabricLauncher;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
+import net.fabricmc.loader.impl.launch.MappingConfiguration;
 import net.fabricmc.loader.impl.util.FileSystemUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
@@ -65,10 +65,13 @@ public final class RuntimeModRemapper {
 
 		if (modsToRemap.isEmpty()) return;
 
-		FabricLauncher launcher = FabricLauncherBase.getLauncher();
+		MappingConfiguration config = FabricLauncherBase.getLauncher().getMappingConfiguration();
+		String modNs = MappingConfiguration.INTERMEDIARY_NAMESPACE;
+		String runtimeNs = config.getRuntimeNamespace();
+		if (modNs.equals(runtimeNs)) return;
 
 		TinyRemapper remapper = TinyRemapper.newRemapper()
-				.withMappings(TinyRemapperMappingsHelper.create(launcher.getMappingConfiguration().getMappings(), "intermediary", launcher.getTargetNamespace()))
+				.withMappings(TinyRemapperMappingsHelper.create(config.getMappings(), modNs, runtimeNs))
 				.renameInvalidLocals(false)
 				.build();
 
@@ -114,7 +117,7 @@ public final class RuntimeModRemapper {
 				List<ResourceRemapper> resourceRemappers = NonClassCopyMode.FIX_META_INF.remappers;
 
 				// aw remapping
-				ResourceRemapper awRemapper = createAccessWidenerRemapper(mod);
+				ResourceRemapper awRemapper = createAccessWidenerRemapper(mod, modNs, runtimeNs);
 
 				if (awRemapper != null) {
 					resourceRemappers = new ArrayList<>(resourceRemappers);
@@ -177,7 +180,7 @@ public final class RuntimeModRemapper {
 		}
 	}
 
-	private static ResourceRemapper createAccessWidenerRemapper(ModCandidateImpl mod) {
+	private static ResourceRemapper createAccessWidenerRemapper(ModCandidateImpl mod, String modNs, String runtimeNs) {
 		String accessWidener = mod.getMetadata().getAccessWidener();
 		if (accessWidener == null) return null;
 
@@ -190,9 +193,9 @@ public final class RuntimeModRemapper {
 			@Override
 			public void transform(Path destinationDirectory, Path relativePath, InputStream input, TinyRemapper remapper) throws IOException {
 				AccessWidenerWriter writer = new AccessWidenerWriter();
-				AccessWidenerRemapper remappingDecorator = new AccessWidenerRemapper(writer, remapper.getEnvironment().getRemapper(), "intermediary", "named");
+				AccessWidenerRemapper remappingDecorator = new AccessWidenerRemapper(writer, remapper.getEnvironment().getRemapper(), modNs, runtimeNs);
 				AccessWidenerReader accessWidenerReader = new AccessWidenerReader(remappingDecorator);
-				accessWidenerReader.read(new BufferedReader(new InputStreamReader(input, AccessWidenerReader.ENCODING)), "intermediary");
+				accessWidenerReader.read(new BufferedReader(new InputStreamReader(input, AccessWidenerReader.ENCODING)), modNs);
 
 				Files.write(destinationDirectory.resolve(relativePath.toString()), writer.write());
 			}

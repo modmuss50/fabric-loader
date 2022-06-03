@@ -26,6 +26,7 @@ import java.util.jar.Attributes.Name;
 import java.util.jar.Manifest;
 import java.util.zip.ZipError;
 
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.util.ManifestUtil;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -33,8 +34,13 @@ import net.fabricmc.mapping.tree.TinyMappingFactory;
 import net.fabricmc.mapping.tree.TinyTree;
 
 public final class MappingConfiguration {
+	public static final String OFFICIAL_NAMESPACE = "official";
+	public static final String INTERMEDIARY_NAMESPACE = "intermediary";
+	public static final String NAMED_NAMESPACE = "named";
+
 	private boolean initialized;
 
+	private String namespace;
 	private String gameId;
 	private String gameVersion;
 	private TinyTree mappings;
@@ -64,17 +70,21 @@ public final class MappingConfiguration {
 		return mappings;
 	}
 
-	public String getTargetNamespace() {
-		return FabricLauncherBase.getLauncher().isDevelopment() ? "named" : "intermediary";
+	public String getRuntimeNamespace() {
+		initialize();
+
+		return namespace;
 	}
 
 	public boolean requiresPackageAccessHack() {
 		// TODO
-		return getTargetNamespace().equals("named");
+		return getRuntimeNamespace().equals(NAMED_NAMESPACE);
 	}
 
 	private void initialize() {
 		if (initialized) return;
+
+		namespace = FabricLoaderImpl.INSTANCE.getGameProvider().getRuntimeNamespace(FabricLauncherBase.getLauncher().getDefaultRuntimeNamespace());
 
 		URL url = MappingConfiguration.class.getClassLoader().getResource("mappings/mappings.tiny");
 

@@ -155,14 +155,15 @@ public final class GameProviderHelper {
 
 	private static boolean emittedInfo = false;
 
-	public static Map<String, Path> deobfuscate(Map<String, Path> inputFileMap, String gameId, String gameVersion, Path gameDir, FabricLauncher launcher) {
+	public static Map<String, Path> deobfuscate(Map<String, Path> inputFileMap, String sourceNamespace, String gameId, String gameVersion, Path gameDir, FabricLauncher launcher) {
 		Log.debug(LogCategory.GAME_REMAP, "Requesting deobfuscation of %s", inputFileMap);
 
-		if (launcher.isDevelopment()) { // in-dev is already deobfuscated
+		MappingConfiguration mappingConfig = launcher.getMappingConfiguration();
+		String targetNamespace = mappingConfig.getRuntimeNamespace();
+
+		if (sourceNamespace.equals(targetNamespace)) {
 			return inputFileMap;
 		}
-
-		MappingConfiguration mappingConfig = launcher.getMappingConfiguration();
 
 		if (!mappingConfig.matches(gameId, gameVersion)) {
 			String mappingsGameId = mappingConfig.getGameId();
@@ -176,10 +177,10 @@ public final class GameProviderHelper {
 							gameVersion));
 		}
 
-		String targetNamespace = mappingConfig.getTargetNamespace();
 		TinyTree mappings = mappingConfig.getMappings();
 
 		if (mappings == null
+				|| !mappings.getMetadata().getNamespaces().contains(sourceNamespace)
 				|| !mappings.getMetadata().getNamespaces().contains(targetNamespace)) {
 			Log.debug(LogCategory.GAME_REMAP, "No mappings, using input files");
 			return inputFileMap;
@@ -235,7 +236,7 @@ public final class GameProviderHelper {
 
 		try {
 			Files.createDirectories(deobfJarDir);
-			deobfuscate0(inputFiles, outputFiles, tmpFiles, mappings, targetNamespace, launcher);
+			deobfuscate0(inputFiles, outputFiles, tmpFiles, mappings, sourceNamespace, targetNamespace, launcher);
 		} catch (IOException e) {
 			throw new RuntimeException("error remapping game jars "+inputFiles, e);
 		}
@@ -262,9 +263,10 @@ public final class GameProviderHelper {
 		return ret.resolve(versionDirName.toString().replaceAll("[^\\w\\-\\. ]+", "_"));
 	}
 
-	private static void deobfuscate0(List<Path> inputFiles, List<Path> outputFiles, List<Path> tmpFiles, TinyTree mappings, String targetNamespace, FabricLauncher launcher) throws IOException {
+	private static void deobfuscate0(List<Path> inputFiles, List<Path> outputFiles, List<Path> tmpFiles,
+			TinyTree mappings, String sourceNamespace, String targetNamespace, FabricLauncher launcher) throws IOException {
 		TinyRemapper remapper = TinyRemapper.newRemapper()
-				.withMappings(TinyRemapperMappingsHelper.create(mappings, "official", targetNamespace))
+				.withMappings(TinyRemapperMappingsHelper.create(mappings, sourceNamespace, targetNamespace))
 				.rebuildSourceFilenames(true)
 				.build();
 

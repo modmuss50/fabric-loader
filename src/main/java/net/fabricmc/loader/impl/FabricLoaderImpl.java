@@ -58,6 +58,7 @@ import net.fabricmc.loader.impl.discovery.RuntimeModRemapper;
 import net.fabricmc.loader.impl.entrypoint.EntrypointStorage;
 import net.fabricmc.loader.impl.game.GameProvider;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
+import net.fabricmc.loader.impl.launch.MappingConfiguration;
 import net.fabricmc.loader.impl.launch.knot.Knot;
 import net.fabricmc.loader.impl.metadata.DependencyOverrides;
 import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
@@ -438,10 +439,8 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	@Override
 	public MappingResolver getMappingResolver() {
 		if (mappingResolver == null) {
-			mappingResolver = new MappingResolverImpl(
-					FabricLauncherBase.getLauncher().getMappingConfiguration()::getMappings,
-					FabricLauncherBase.getLauncher().getTargetNamespace()
-					);
+			MappingConfiguration config = FabricLauncherBase.getLauncher().getMappingConfiguration();
+			mappingResolver = new MappingResolverImpl(config::getMappings, config.getRuntimeNamespace());
 		}
 
 		return mappingResolver;
