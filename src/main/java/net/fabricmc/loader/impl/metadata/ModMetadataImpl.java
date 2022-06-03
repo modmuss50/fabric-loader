@@ -44,7 +44,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private Version version;
 
 	// Optional (id provides)
-	private final Collection<ProvidedMod> providedMods;
+	private final Collection<ProvidedModImpl> providedMods;
 
 	// Optional (mod loading)
 	private final ModEnvironment environment;
@@ -79,7 +79,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private final Collection<String> oldInitializers;
 
 	ModMetadataImpl(int schemaVersion,
-			String id, Version version, Collection<? extends ProvidedMod> providedMods,
+			String id, Version version, Collection<ProvidedModImpl> providedMods,
 			ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
 			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
 			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
@@ -157,7 +157,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	@Override
-	public Collection<ProvidedMod> getAdditionallyProvidedMods() {
+	public Collection<? extends ProvidedMod> getAdditionallyProvidedMods() {
 		return providedMods;
 	}
 
@@ -169,6 +169,10 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	@Override
 	public void setVersion(Version version) {
 		this.version = version;
+
+		for (ProvidedModImpl m : providedMods) {
+			if (!m.hasOwnVersion) m.setVersion(version);
+		}
 	}
 
 	@Override
@@ -311,11 +315,13 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	static final class ProvidedModImpl implements ProvidedMod {
 		private final String id;
 		private Version version;
+		final boolean hasOwnVersion;
 		private final boolean exclusive;
 
-		ProvidedModImpl(String id, Version version, boolean exclusive) {
+		ProvidedModImpl(String id, Version version, boolean hasOwnVersion, boolean exclusive) {
 			this.id = id;
 			this.version = version;
+			this.hasOwnVersion = hasOwnVersion;
 			this.exclusive = exclusive;
 		}
 
@@ -340,7 +346,11 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 		@Override
 		public String toString() {
-			return String.format("%s %s (%s)", id, version, exclusive ? "exclusive" : "shared");
+			return String.format("%s %s (%s%s)",
+					id,
+					version,
+					(hasOwnVersion ? "" : "inherited, "),
+					(exclusive ? "exclusive" : "shared"));
 		}
 	}
 

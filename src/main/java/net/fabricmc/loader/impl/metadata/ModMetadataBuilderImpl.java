@@ -131,9 +131,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	public ModMetadataBuilder setVersion(Version version) {
 		// replace default version in provided mods if it points to the old version
 		for (ProvidedModImpl mod : providedMods) {
-			if (mod.getVersion() == this.version) { // identity cmp is fine because it was defaulted to this.version
-				mod.setVersion(version);
-			}
+			if (!mod.hasOwnVersion) mod.setVersion(version);
 		}
 
 		this.version = version;
@@ -150,7 +148,8 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	public ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive) {
 		Objects.requireNonNull(modId, "null modId");
 
-		providedMods.add(new ProvidedModImpl(modId, version != null ? version : this.version, exclusive));
+		boolean hasOwnVersion = version != null;
+		providedMods.add(new ProvidedModImpl(modId, hasOwnVersion ? version : this.version, hasOwnVersion, exclusive));
 
 		return this;
 	}
