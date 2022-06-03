@@ -17,7 +17,6 @@
 package net.fabricmc.loader.impl.metadata;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -26,13 +25,11 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
-import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 import net.fabricmc.loader.impl.lib.gson.JsonToken;
 
@@ -71,22 +68,22 @@ final class V1ModMetadataParser {
 				readMixinConfigs(reader, warnings, builder);
 				break;
 			case "accessWidener":
-				builder.setAccessWidener(ParserUtil.readString(reader, key));
+				builder.addClassTweaker(ParserUtil.readString(reader, key));
 				break;
 			case "depends":
-				readDependenciesContainer(reader, ModDependency.Kind.DEPENDS, builder);
+				V0ModMetadataParser.readDependency(reader, ModDependency.Kind.DEPENDS, key, builder);
 				break;
 			case "recommends":
-				readDependenciesContainer(reader, ModDependency.Kind.RECOMMENDS, builder);
+				V0ModMetadataParser.readDependency(reader, ModDependency.Kind.RECOMMENDS, key, builder);
 				break;
 			case "suggests":
-				readDependenciesContainer(reader, ModDependency.Kind.SUGGESTS, builder);
+				V0ModMetadataParser.readDependency(reader, ModDependency.Kind.SUGGESTS, key, builder);
 				break;
 			case "conflicts":
-				readDependenciesContainer(reader, ModDependency.Kind.CONFLICTS, builder);
+				V0ModMetadataParser.readDependency(reader, ModDependency.Kind.CONFLICTS, key, builder);
 				break;
 			case "breaks":
-				readDependenciesContainer(reader, ModDependency.Kind.BREAKS, builder);
+				V0ModMetadataParser.readDependency(reader, ModDependency.Kind.BREAKS, key, builder);
 				break;
 			case "name":
 				V0ModMetadataParser.readModName(reader, builder);
@@ -325,44 +322,6 @@ final class V1ModMetadataParser {
 		reader.endArray();
 	}
 
-	private static void readDependenciesContainer(JsonReader reader, ModDependency.Kind kind, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
-		if (reader.peek() != JsonToken.BEGIN_OBJECT) {
-			throw new ParseMetadataException("Dependency container must be an object!", reader);
-		}
-
-		reader.beginObject();
-
-		while (reader.hasNext()) {
-			final String modId = reader.nextName();
-			final List<String> matcherStringList = new ArrayList<>();
-
-			switch (reader.peek()) {
-			case STRING:
-				matcherStringList.add(reader.nextString());
-				break;
-			case BEGIN_ARRAY:
-				reader.beginArray();
-
-				while (reader.hasNext()) {
-					matcherStringList.add(ParserUtil.readString(reader, "dependency version range"));
-				}
-
-				reader.endArray();
-				break;
-			default:
-				throw new ParseMetadataException("Dependency version range must be a string or string array!", reader);
-			}
-
-			try {
-				builder.addDependency(kind, modId, VersionPredicate.parse(matcherStringList));
-			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e, reader);
-			}
-		}
-
-		reader.endObject();
-	}
-
 	private static void readPeople(JsonReader reader, boolean isAuthor, List<ParseWarning> warnings, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
 		if (reader.peek() != JsonToken.BEGIN_ARRAY) {
 			throw new ParseMetadataException("List of people must be an array", reader);
@@ -459,11 +418,7 @@ final class V1ModMetadataParser {
 			reader.beginArray();
 
 			while (reader.hasNext()) {
-				if (reader.peek() != JsonToken.STRING) {
-					throw new ParseMetadataException("List of licenses must only contain strings", reader);
-				}
-
-				builder.addLicense(reader.nextString());
+				builder.addLicense(ParserUtil.readString(reader, "license"));
 			}
 
 			reader.endArray();

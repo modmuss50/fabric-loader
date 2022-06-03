@@ -121,7 +121,7 @@ public final class FabricMixinBootstrap {
 
 		try {
 			IMixinConfig.class.getMethod("decorate", String.class, Object.class);
-			MixinConfigDecorator.apply(configToModMap);
+			MixinConfigDecorator.apply(configToModMap, side);
 		} catch (NoSuchMethodException e) {
 			Log.info(LogCategory.MIXIN, "Detected old Mixin version without config decoration support");
 		}
@@ -140,18 +140,18 @@ public final class FabricMixinBootstrap {
 			addVersion("0.12.0-", FabricUtil.COMPATIBILITY_0_10_0);
 		}
 
-		static void apply(Map<String, ModContainerImpl> configToModMap) {
+		static void apply(Map<String, ModContainerImpl> configToModMap, EnvType env) {
 			for (Config rawConfig : Mixins.getConfigs()) {
 				ModContainerImpl mod = configToModMap.get(rawConfig.getName());
 				if (mod == null) continue;
 
 				IMixinConfig config = rawConfig.getConfig();
 				config.decorate(FabricUtil.KEY_MOD_ID, mod.getMetadata().getId());
-				config.decorate(FabricUtil.KEY_COMPATIBILITY, getMixinCompat(mod));
+				config.decorate(FabricUtil.KEY_COMPATIBILITY, getMixinCompat(mod, env));
 			}
 		}
 
-		private static int getMixinCompat(ModContainerImpl mod) {
+		private static int getMixinCompat(ModContainerImpl mod, EnvType env) {
 			// infer from loader dependency by determining the least relevant loader version the mod accepts
 			// AND any loader deps
 

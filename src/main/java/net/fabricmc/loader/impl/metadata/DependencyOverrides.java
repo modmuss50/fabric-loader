@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import net.fabricmc.loader.api.VersionParsingException;
+import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyBuilder;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.impl.FormattedException;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
@@ -101,7 +101,7 @@ public final class DependencyOverrides {
 			throw new ParseMetadataException("Dependency container must be an object!", reader);
 		}
 
-		Map<ModDependency.Kind, Map<Operation, List<ModDependency>>> modOverrides = new EnumMap<>(ModDependency.Kind.class);
+		Map<ModDependency.Kind, Map<Operation, List<ModDependencyImpl>>> modOverrides = new EnumMap<>(ModDependency.Kind.class);
 		reader.beginObject();
 
 		while (reader.hasNext()) {
@@ -126,7 +126,7 @@ public final class DependencyOverrides {
 						reader);
 			}
 
-			List<ModDependency> deps = readDependencies(reader, kind);
+			List<ModDependencyImpl> deps = readDependencies(reader, kind);
 
 			if (!deps.isEmpty() || op == Operation.REPLACE) {
 				modOverrides.computeIfAbsent(kind, ignore -> new EnumMap<>(Operation.class)).put(op, deps);
@@ -137,11 +137,11 @@ public final class DependencyOverrides {
 
 		List<Entry> ret = new ArrayList<>();
 
-		for (Map.Entry<ModDependency.Kind, Map<Operation, List<ModDependency>>> entry : modOverrides.entrySet()) {
+		for (Map.Entry<ModDependency.Kind, Map<Operation, List<ModDependencyImpl>>> entry : modOverrides.entrySet()) {
 			ModDependency.Kind kind = entry.getKey();
-			Map<Operation, List<ModDependency>> map = entry.getValue();
+			Map<Operation, List<ModDependencyImpl>> map = entry.getValue();
 
-			List<ModDependency> values = map.get(Operation.REPLACE);
+			List<ModDependencyImpl> values = map.get(Operation.REPLACE);
 
 			if (values != null) {
 				ret.add(new Entry(Operation.REPLACE, kind, values)); // suppresses add+remove
@@ -157,44 +157,19 @@ public final class DependencyOverrides {
 		return ret;
 	}
 
-	private static List<ModDependency> readDependencies(JsonReader reader, ModDependency.Kind kind) throws IOException, ParseMetadataException {
+	private static List<ModDependencyImpl> readDependencies(JsonReader reader, ModDependency.Kind kind) throws IOException, ParseMetadataException {
 		if (reader.peek() != JsonToken.BEGIN_OBJECT) {
 			throw new ParseMetadataException("Dependency container must be an object!", reader);
 		}
 
-		List<ModDependency> ret = new ArrayList<>();
+		List<ModDependencyImpl> ret = new ArrayList<>();
 		reader.beginObject();
 
 		while (reader.hasNext()) {
-			final String modId = reader.nextName();
-			final List<String> matcherStringList = new ArrayList<>();
+			ModDependencyBuilder builder = ModDependencyBuilder.create(kind, reader.nextName());
+			V0ModMetadataParser.readDependencyValue(reader, builder);
 
-			switch (reader.peek()) {
-			case STRING:
-				matcherStringList.add(reader.nextString());
-				break;
-			case BEGIN_ARRAY:
-				reader.beginArray();
-
-				while (reader.hasNext()) {
-					if (reader.peek() != JsonToken.STRING) {
-						throw new ParseMetadataException("Dependency version range array must only contain string values", reader);
-					}
-
-					matcherStringList.add(reader.nextString());
-				}
-
-				reader.endArray();
-				break;
-			default:
-				throw new ParseMetadataException("Dependency version range must be a string or string array!", reader);
-			}
-
-			try {
-				ret.add(new ModDependencyImpl(kind, modId, matcherStringList));
-			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e, reader);
-			}
+			ret.add((ModDependencyImpl) builder.build());
 		}
 
 		reader.endObject();
@@ -208,12 +183,12 @@ public final class DependencyOverrides {
 		List<Entry> modOverrides = dependencyOverrides.get(metadata.getId());
 		if (modOverrides == null) return;
 
-		List<ModDependency> deps = new ArrayList<>(metadata.getDependencies());
+		List<ModDependencyImpl> deps = new ArrayList<>(metadata.getDependencies());
 
 		for (Entry entry : modOverrides) {
 			switch (entry.operation) {
 			case REPLACE:
-				for (Iterator<ModDependency> it = deps.iterator(); it.hasNext(); ) {
+				for (Iterator<ModDependencyImpl> it = deps.iterator(); it.hasNext(); ) {
 					ModDependency dep = it.next();
 
 					if (dep.getKind() == entry.kind) {
@@ -224,7 +199,7 @@ public final class DependencyOverrides {
 				deps.addAll(entry.values);
 				break;
 			case REMOVE:
-				for (Iterator<ModDependency> it = deps.iterator(); it.hasNext(); ) {
+				for (Iterator<ModDependencyImpl> it = deps.iterator(); it.hasNext(); ) {
 					ModDependency dep = it.next();
 
 					if (dep.getKind() == entry.kind) {
@@ -254,9 +229,9 @@ public final class DependencyOverrides {
 	private static final class Entry {
 		final Operation operation;
 		final ModDependency.Kind kind;
-		final List<ModDependency> values;
+		final List<ModDependencyImpl> values;
 
-		Entry(Operation operation, ModDependency.Kind kind, List<ModDependency> values) {
+		Entry(Operation operation, ModDependency.Kind kind, List<ModDependencyImpl> values) {
 			this.operation = operation;
 			this.kind = kind;
 			this.values = values;

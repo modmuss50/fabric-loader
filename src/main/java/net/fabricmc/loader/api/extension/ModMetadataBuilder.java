@@ -33,6 +33,7 @@ import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ContactInformationBuilderImpl;
+import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ModDependencyBuilderImpl;
 
 public interface ModMetadataBuilder extends ModMetadata {
 	static ModMetadataBuilder create() {
@@ -52,9 +53,9 @@ public interface ModMetadataBuilder extends ModMetadata {
 	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter);
 	ModMetadataBuilder addNestedMod(String location);
 	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment);
-	ModMetadataBuilder setAccessWidener(String location);
+	ModMetadataBuilder addClassTweaker(String location);
 
-	ModMetadataBuilder addDependency(ModDependency.Kind kind, String modId, Collection<VersionPredicate> versionOptions);
+	ModMetadataBuilder addDependency(ModDependency dependenc);
 
 	ModMetadataBuilder setName(String name);
 	ModMetadataBuilder setDescription(String description);
@@ -76,6 +77,25 @@ public interface ModMetadataBuilder extends ModMetadata {
 	String toJson();
 
 	ModMetadata build();
+
+	interface ModDependencyBuilder {
+		static ModDependencyBuilder create() {
+			return new ModDependencyBuilderImpl();
+		}
+
+		static ModDependencyBuilder create(ModDependency.Kind kind, String modId) {
+			return new ModDependencyBuilderImpl().setKind(kind).setModId(modId);
+		}
+
+		ModDependencyBuilder setKind(ModDependency.Kind kind);
+		ModDependencyBuilder setModId(String modId);
+		ModDependencyBuilder addVersion(String predicate) throws VersionParsingException;
+		ModDependencyBuilder addVersion(VersionPredicate predicate);
+		ModDependencyBuilder addVersions(Collection<VersionPredicate> predicates);
+		ModDependencyBuilder setEnvironment(ModEnvironment environment);
+
+		ModDependency build();
+	}
 
 	interface ContactInformationBuilder {
 		static ContactInformationBuilder create() {

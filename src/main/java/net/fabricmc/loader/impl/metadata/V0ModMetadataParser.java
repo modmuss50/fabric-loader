@@ -17,7 +17,6 @@
 package net.fabricmc.loader.impl.metadata;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -27,11 +26,11 @@ import java.util.regex.Pattern;
 
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
+import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
-import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 import net.fabricmc.loader.impl.lib.gson.JsonToken;
 
@@ -54,10 +53,10 @@ final class V0ModMetadataParser {
 				readModVersion(reader, builder);
 				break;
 			case "requires":
-				readDependenciesContainer(reader, ModDependency.Kind.DEPENDS, "requires", builder);
+				readDependency(reader, ModDependency.Kind.DEPENDS, key, builder);
 				break;
 			case "conflicts":
-				readDependenciesContainer(reader, ModDependency.Kind.BREAKS, "conflicts", builder);
+				readDependency(reader, ModDependency.Kind.BREAKS, key, builder);
 				break;
 			case "mixins":
 				readMixins(reader, warnings, builder);
@@ -127,7 +126,7 @@ final class V0ModMetadataParser {
 				readModDescription(reader, builder);
 				break;
 			case "recommends":
-				readDependenciesContainer(reader, ModDependency.Kind.RECOMMENDS, "recommends", builder);
+				readDependency(reader, ModDependency.Kind.RECOMMENDS, "recommends", builder);
 				break;
 			case "authors":
 				readPeople(reader, true, warnings, builder);
@@ -314,7 +313,7 @@ final class V0ModMetadataParser {
 		reader.endObject();
 	}
 
-	private static void readDependenciesContainer(JsonReader reader, ModDependency.Kind kind, String name, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+	static void readDependency(JsonReader reader, ModDependency.Kind kind, String name, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
 		if (reader.peek() != JsonToken.BEGIN_OBJECT) {
 			throw new ParseMetadataException(String.format("%s must be an object containing dependencies.", name), reader);
 		}
@@ -322,38 +321,36 @@ final class V0ModMetadataParser {
 		reader.beginObject();
 
 		while (reader.hasNext()) {
-			final String modId = reader.nextName();
-			final List<String> versionMatchers = new ArrayList<>();
+			ModDependencyBuilder depBuilder = ModDependencyBuilder.create(kind, reader.nextName());
+			readDependencyValue(reader, depBuilder);
 
+			builder.addDependency(depBuilder.build());
+		}
+
+		reader.endObject();
+	}
+
+	static void readDependencyValue(JsonReader reader, ModDependencyBuilder builder) throws IOException, ParseMetadataException {
+		try {
 			switch (reader.peek()) {
 			case STRING:
-				versionMatchers.add(reader.nextString());
+				builder.addVersion(reader.nextString());
 				break;
 			case BEGIN_ARRAY:
 				reader.beginArray();
 
 				while (reader.hasNext()) {
-					if (reader.peek() != JsonToken.STRING) {
-						throw new ParseMetadataException("List of version requirements must be strings", reader);
-					}
-
-					versionMatchers.add(reader.nextString());
+					builder.addVersion(ParserUtil.readString(reader, "dependency version"));
 				}
 
 				reader.endArray();
 				break;
 			default:
-				throw new ParseMetadataException("Expected version to be a string or array", reader);
+				throw new ParseMetadataException("Expected dependency version to be a string or array", reader);
 			}
-
-			try {
-				builder.addDependency(kind, modId, VersionPredicate.parse(versionMatchers));
-			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e, reader);
-			}
+		} catch (VersionParsingException e) {
+			throw new ParseMetadataException(e, reader);
 		}
-
-		reader.endObject();
 	}
 
 	private static void readPeople(JsonReader reader, boolean isAuthor, List<ParseWarning> warnings, ModMetadataBuilder builder) throws IOException, ParseMetadataException {

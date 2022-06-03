@@ -38,7 +38,6 @@ import net.fabricmc.loader.api.extension.ModMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
-import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
@@ -72,10 +71,10 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	final List<String> oldInitializers = new ArrayList<>();
 	final List<NestedJarEntry> nestedMods = new ArrayList<>();
 	final List<MixinEntry> mixins = new ArrayList<>();
-	String accessWidener = null;
+	final List<String> classTweakers = new ArrayList<>();
 
 	// Optional (dependency resolution)
-	List<ModDependency> dependencies = new ArrayList<>();
+	List<ModDependencyImpl> dependencies = new ArrayList<>();
 
 	// Optional (metadata)
 	String name = null;
@@ -227,26 +226,24 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder setAccessWidener(String location) {
+	public ModMetadataBuilder addClassTweaker(String location) {
 		Objects.requireNonNull(location, "null location");
 
-		accessWidener = location;
+		classTweakers.add(location);
 
 		return this;
 	}
 
 	@Override
-	public Collection<ModDependency> getDependencies() {
+	public Collection<? extends ModDependency> getDependencies() {
 		return dependencies;
 	}
 
 	@Override
-	public ModMetadataBuilder addDependency(Kind kind, String modId, Collection<VersionPredicate> versionOptions) {
-		Objects.requireNonNull(kind, "null kind");
-		Objects.requireNonNull(modId, "null modId");
-		Objects.requireNonNull(versionOptions, "null versionOptions");
+	public ModMetadataBuilder addDependency(ModDependency dependency) {
+		Objects.requireNonNull(dependency, "null dependency");
 
-		dependencies.add(new ModDependencyImpl(kind, modId, versionOptions));
+		dependencies.add((ModDependencyImpl) dependency);
 
 		return this;
 	}
@@ -465,7 +462,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 				providedMods,
 				environment, loadCondition, loadPhase,
 				entrypoints, nestedMods,
-				mixins, accessWidener,
+				mixins, classTweakers,
 				dependencies,
 				name, description,
 				authors, contributors, contact, licenses, icon,
@@ -477,6 +474,62 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	private void checkInitialized() {
 		if (id == null) throw new IllegalStateException("modId wasn't set");
 		if (version == null) throw new IllegalStateException("version wasn't set");
+	}
+
+	public static final class ModDependencyBuilderImpl implements ModDependencyBuilder {
+		private ModDependency.Kind kind;
+		private String modId;
+		private final Collection<VersionPredicate> versionOptions = new ArrayList<>();
+		private ModEnvironment environment = ModEnvironment.UNIVERSAL;
+
+		@Override
+		public ModDependencyBuilder setKind(ModDependency.Kind kind) {
+			this.kind = kind;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder setModId(String modId) {
+			this.modId = modId;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder addVersion(String predicate) throws VersionParsingException {
+			return addVersion(VersionPredicate.parse(predicate));
+		}
+
+		@Override
+		public ModDependencyBuilder addVersion(VersionPredicate predicate) {
+			versionOptions.add(predicate);
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder addVersions(Collection<VersionPredicate> predicates) {
+			versionOptions.addAll(predicates);
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder setEnvironment(ModEnvironment environment) {
+			this.environment = environment;
+
+			return this;
+		}
+
+		@Override
+		public ModDependency build() {
+			if (kind == null) throw new IllegalStateException("kind is not set");
+			if (modId == null) throw new IllegalStateException("modId is not set");
+			if (versionOptions.isEmpty()) versionOptions.add(VersionPredicate.any());
+
+			return new ModDependencyImpl(kind, modId, versionOptions, environment);
+		}
 	}
 
 	public static final class ContactInformationBuilderImpl implements ContactInformationBuilder {

@@ -283,7 +283,7 @@ public class ModResolver {
 		for (ModCandidateImpl mod : mods) {
 			if (mod.getMetadata().getSchemaVersion() >= 2) continue;
 
-			for (ModDependency dep : mod.getMetadata().getDependencies()) {
+			for (ModDependency dep : mod.getDependencies()) {
 				if (!dep.getKind().isPositive() || dep.getKind() == Kind.SUGGESTS) continue; // no positive dep or already suggests
 				if (!(dep instanceof ModDependencyImpl)) continue; // can't modify dep kind
 				if (context.modsById.containsKey(dep.getModId())) continue; // non-disabled match available
@@ -426,7 +426,7 @@ public class ModResolver {
 
 	public static final class ResolutionContext {
 		final Collection<ModCandidateImpl> initialMods;
-		final EnvType envType;
+		public final EnvType envType;
 		final Map<String, Set<ModCandidateImpl>> envDisabledMods;
 		final PhaseSelectHandler phaseSelectHandler;
 

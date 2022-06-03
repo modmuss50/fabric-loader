@@ -17,18 +17,18 @@
 package net.fabricmc.loader.impl.metadata;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
+import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
-import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 import net.fabricmc.loader.impl.lib.gson.JsonToken;
 
@@ -42,6 +42,9 @@ final class V2ModMetadataParser {
 	 * <li>entrypoints object can use string values without an array
 	 * <li>added loadCondition
 	 * <li>added loadPhase
+	 * <li>accessWidener -> classTweakers, can take string or array of strings
+	 * <li>license -> licenses
+	 * <li>dependencies accept object value form with additional environment
 	 * </ul>
 	 */
 	static void parse(JsonReader reader, List<ParseWarning> warnings, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
@@ -80,23 +83,23 @@ final class V2ModMetadataParser {
 			case "mixins":
 				readMixinConfigs(reader, builder);
 				break;
-			case "accessWidener":
-				builder.setAccessWidener(ParserUtil.readString(reader, key));
+			case "classTweakers":
+				readClassTweakers(reader, builder);
 				break;
 			case "depends":
-				readDependenciesContainer(reader, ModDependency.Kind.DEPENDS, builder);
+				readDependency(reader, ModDependency.Kind.DEPENDS, builder);
 				break;
 			case "recommends":
-				readDependenciesContainer(reader, ModDependency.Kind.RECOMMENDS, builder);
+				readDependency(reader, ModDependency.Kind.RECOMMENDS, builder);
 				break;
 			case "suggests":
-				readDependenciesContainer(reader, ModDependency.Kind.SUGGESTS, builder);
+				readDependency(reader, ModDependency.Kind.SUGGESTS, builder);
 				break;
 			case "conflicts":
-				readDependenciesContainer(reader, ModDependency.Kind.CONFLICTS, builder);
+				readDependency(reader, ModDependency.Kind.CONFLICTS, builder);
 				break;
 			case "breaks":
-				readDependenciesContainer(reader, ModDependency.Kind.BREAKS, builder);
+				readDependency(reader, ModDependency.Kind.BREAKS, builder);
 				break;
 			case "name":
 				V0ModMetadataParser.readModName(reader, builder);
@@ -113,7 +116,7 @@ final class V2ModMetadataParser {
 			case "contact":
 				builder.setContact(V1ModMetadataParser.readContactInfo(reader));
 				break;
-			case "license":
+			case "licenses":
 				V1ModMetadataParser.readLicense(reader, builder);
 				break;
 			case "icon":
@@ -278,39 +281,59 @@ final class V2ModMetadataParser {
 		reader.endArray();
 	}
 
-	private static void readDependenciesContainer(JsonReader reader, ModDependency.Kind kind, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+	private static void readClassTweakers(JsonReader reader, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+		switch (reader.peek()) {
+		case STRING:
+			builder.addClassTweaker(reader.nextString());
+			break;
+		case BEGIN_ARRAY:
+			reader.beginArray();
+
+			while (reader.hasNext()) {
+				builder.addClassTweaker(ParserUtil.readString(reader, "class tweaker"));
+			}
+
+			reader.endArray();
+			break;
+		default:
+			throw new ParseMetadataException("classTweakers must be a string or array of strings!", reader);
+		}
+	}
+
+	private static void readDependency(JsonReader reader, ModDependency.Kind kind, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
 		if (reader.peek() != JsonToken.BEGIN_OBJECT) {
-			throw new ParseMetadataException("Dependency container must be an object!", reader);
+			throw new ParseMetadataException(String.format("%s must be an object containing dependencies.", kind.name().toLowerCase(Locale.ENGLISH)), reader);
 		}
 
 		reader.beginObject();
 
 		while (reader.hasNext()) {
-			final String modId = reader.nextName();
-			final List<String> matcherStringList = new ArrayList<>();
+			ModDependencyBuilder depBuilder = ModDependencyBuilder.create(kind, reader.nextName());
 
-			switch (reader.peek()) {
-			case STRING:
-				matcherStringList.add(reader.nextString());
-				break;
-			case BEGIN_ARRAY:
-				reader.beginArray();
+			if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+				V0ModMetadataParser.readDependencyValue(reader, depBuilder);
+			} else {
+				reader.beginObject();
 
 				while (reader.hasNext()) {
-					matcherStringList.add(ParserUtil.readString(reader, "dependency version range"));
+					String key = reader.nextName();
+
+					switch (key) {
+					case "version": // if this is absent depBuilder will default to any
+						V0ModMetadataParser.readDependencyValue(reader, depBuilder);
+						break;
+					case "environment":
+						depBuilder.setEnvironment(V1ModMetadataParser.readEnvironment(reader));
+						break;
+					default:
+						throw new ParseMetadataException("Invalid key "+key+" in dependency value", reader);
+					}
 				}
 
-				reader.endArray();
-				break;
-			default:
-				throw new ParseMetadataException("Dependency version range must be a string or string array!", reader);
+				reader.endObject();
 			}
 
-			try {
-				builder.addDependency(kind, modId, VersionPredicate.parse(matcherStringList));
-			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e, reader);
-			}
+			builder.addDependency(depBuilder.build());
 		}
 
 		reader.endObject();

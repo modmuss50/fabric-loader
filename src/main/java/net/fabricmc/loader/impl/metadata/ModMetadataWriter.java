@@ -145,8 +145,17 @@ final class ModMetadataWriter {
 			jw.endArray();
 		}
 
-		if (meta.accessWidener != null) {
-			jw.name("accessWidener").value(meta.accessWidener);
+		if (!meta.classTweakers.isEmpty()) {
+			jw.name("classTweakers");
+			boolean multiple = meta.classTweakers.size() != 1;
+
+			if (multiple) jw.beginArray();
+
+			for (String accessWidener : meta.classTweakers) {
+				jw.value(accessWidener);
+			}
+
+			if (multiple) jw.endArray();
 		}
 
 		if (!meta.dependencies.isEmpty()) {
@@ -217,7 +226,7 @@ final class ModMetadataWriter {
 		}
 
 		if (!meta.licenses.isEmpty()) {
-			jw.name("license");
+			jw.name("licenses");
 
 			boolean multiple = meta.licenses.size() != 1;
 

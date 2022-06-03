@@ -117,7 +117,7 @@ public final class RuntimeModRemapper {
 				List<ResourceRemapper> resourceRemappers = NonClassCopyMode.FIX_META_INF.remappers;
 
 				// aw remapping
-				ResourceRemapper awRemapper = createAccessWidenerRemapper(mod, modNs, runtimeNs);
+				ResourceRemapper awRemapper = createClassTweakerRemapper(mod, modNs, runtimeNs);
 
 				if (awRemapper != null) {
 					resourceRemappers = new ArrayList<>(resourceRemappers);
@@ -180,14 +180,14 @@ public final class RuntimeModRemapper {
 		}
 	}
 
-	private static ResourceRemapper createAccessWidenerRemapper(ModCandidateImpl mod, String modNs, String runtimeNs) {
-		String accessWidener = mod.getMetadata().getAccessWidener();
-		if (accessWidener == null) return null;
+	private static ResourceRemapper createClassTweakerRemapper(ModCandidateImpl mod, String modNs, String runtimeNs) {
+		Collection<String> classTweakers = mod.getMetadata().getClassTweakers();
+		if (classTweakers.isEmpty()) return null;
 
 		return new ResourceRemapper() {
 			@Override
 			public boolean canTransform(TinyRemapper remapper, Path relativePath) {
-				return relativePath.toString().equals(accessWidener);
+				return classTweakers.contains(relativePath.toString());
 			}
 
 			@Override

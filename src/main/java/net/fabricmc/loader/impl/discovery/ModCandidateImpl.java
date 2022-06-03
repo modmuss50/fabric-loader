@@ -167,7 +167,7 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 		return minNestLevel == 0 ? ModLoadCondition.ALWAYS : ModLoadCondition.IF_POSSIBLE;
 	}
 
-	public Collection<ModDependency> getDependencies() {
+	public Collection<? extends ModDependency> getDependencies() {
 		return metadata.getDependencies();
 	}
 

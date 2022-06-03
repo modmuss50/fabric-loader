@@ -90,7 +90,7 @@ public interface ModMetadata {
 	/**
 	 * Returns all of the mod's dependencies.
 	 */
-	Collection<ModDependency> getDependencies();
+	Collection<? extends ModDependency> getDependencies();
 
 	/**
 	 * Returns the mod's required dependencies, without which the Loader will terminate loading.

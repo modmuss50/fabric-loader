@@ -20,9 +20,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
-import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.metadata.ModDependency;
+import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 
@@ -30,15 +31,15 @@ public final class ModDependencyImpl implements ModDependency {
 	private Kind kind;
 	private final String modId;
 	private final Collection<VersionPredicate> ranges;
+	private final ModEnvironment environment;
 
-	public ModDependencyImpl(Kind kind, String modId, List<String> matcherStringList) throws VersionParsingException {
-		this(kind, modId, VersionPredicate.parse(matcherStringList));
-	}
-
-	public ModDependencyImpl(Kind kind, String modId, Collection<VersionPredicate> versionOptions) {
+	ModDependencyImpl(Kind kind,
+			String modId, Collection<VersionPredicate> versionOptions,
+			ModEnvironment environment) {
 		this.kind = kind;
 		this.modId = modId;
 		this.ranges = versionOptions;
+		this.environment = environment;
 	}
 
 	@Override
@@ -53,6 +54,10 @@ public final class ModDependencyImpl implements ModDependency {
 	@Override
 	public String getModId() {
 		return this.modId;
+	}
+
+	boolean appliesInEnvironment(EnvType type) {
+		return environment.matches(type);
 	}
 
 	@Override

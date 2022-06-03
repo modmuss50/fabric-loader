@@ -531,21 +531,23 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		}
 	}
 
-	public void loadAccessWideners() {
+	public void loadClassTweakers() {
 		AccessWidenerReader accessWidenerReader = new AccessWidenerReader(accessWidener);
 
 		for (ModContainer modContainer : mods) {
 			LoaderModMetadata modMetadata = (LoaderModMetadata) modContainer.getMetadata();
-			String accessWidener = modMetadata.getAccessWidener();
-			if (accessWidener == null) continue;
+			Collection<String> classTweakers = modMetadata.getClassTweakers();
+			if (classTweakers.isEmpty()) continue;
 
-			Path path = modContainer.findPath(accessWidener).orElse(null);
-			if (path == null) throw new RuntimeException(String.format("Missing accessWidener file %s from mod %s", accessWidener, modContainer.getMetadata().getId()));
+			for (String loc : classTweakers) {
+				Path path = modContainer.findPath(loc).orElse(null);
+				if (path == null) throw new RuntimeException(String.format("Missing classTweaker (accessWidener) file %s from mod %s", loc, modContainer.getMetadata().getId()));
 
-			try (BufferedReader reader = Files.newBufferedReader(path)) {
-				accessWidenerReader.read(reader, getMappingResolver().getCurrentRuntimeNamespace());
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to read accessWidener file from mod " + modMetadata.getId(), e);
+				try (BufferedReader reader = Files.newBufferedReader(path)) {
+					accessWidenerReader.read(reader, getMappingResolver().getCurrentRuntimeNamespace());
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to read classTweaker (accessWidener) file from mod " + modMetadata.getId(), e);
+				}
 			}
 		}
 	}

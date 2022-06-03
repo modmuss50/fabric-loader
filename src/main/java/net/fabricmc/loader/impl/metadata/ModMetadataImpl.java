@@ -28,7 +28,6 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
-import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
@@ -53,11 +52,10 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private final Map<String, List<EntrypointMetadata>> entrypoints;
 	private final Collection<NestedJarEntry> jars;
 	private final Collection<MixinEntry> mixins;
-	/* @Nullable */
-	private final String accessWidener;
+	private final Collection<String> classTweakers;
 
 	// Optional (dependency resolution)
-	private Collection<ModDependency> dependencies;
+	private Collection<ModDependencyImpl> dependencies;
 
 	// Optional (metadata)
 	/* @Nullable */
@@ -82,8 +80,8 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 			String id, Version version, Collection<ProvidedModImpl> providedMods,
 			ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
 			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
-			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
-			Collection<ModDependency> dependencies,
+			Collection<MixinEntry> mixins, Collection<String> classTweakers,
+			Collection<ModDependencyImpl> dependencies,
 			/* @Nullable */ String name, /* @Nullable */String description,
 			Collection<Person> authors, Collection<Person> contributors, /* @Nullable */ContactInformation contact, Collection<String> license, IconEntry icon,
 			Map<String, String> languageAdapters,
@@ -99,7 +97,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		this.entrypoints = unmodifiable(entrypoints);
 		this.jars = unmodifiable(jars);
 		this.mixins = unmodifiable(mixins);
-		this.accessWidener = accessWidener;
+		this.classTweakers = unmodifiable(classTweakers);
 		this.dependencies = unmodifiable(dependencies);
 		this.name = name;
 
@@ -196,12 +194,12 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	@Override
-	public Collection<ModDependency> getDependencies() {
+	public Collection<ModDependencyImpl> getDependencies() {
 		return dependencies;
 	}
 
 	@Override
-	public void setDependencies(Collection<ModDependency> dependencies) {
+	public void setDependencies(Collection<ModDependencyImpl> dependencies) {
 		this.dependencies = Collections.unmodifiableCollection(dependencies);
 	}
 
@@ -278,8 +276,8 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	@Override
-	public String getAccessWidener() {
-		return this.accessWidener;
+	public Collection<String> getClassTweakers() {
+		return classTweakers;
 	}
 
 	@Override
