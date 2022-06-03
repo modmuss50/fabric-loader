@@ -48,7 +48,7 @@ import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 
 public final class LibClassifier<L extends Enum<L> & LibraryType> {
-	private static final boolean DEBUG = System.getProperty(SystemProperties.DEBUG_LOG_LIB_CLASSIFICATION) != null;
+	private static final boolean DEBUG = SystemProperties.isSet(SystemProperties.DEBUG_LOG_LIB_CLASSIFICATION);
 
 	private final List<L> libs;
 	private final Map<L, Path> origins;

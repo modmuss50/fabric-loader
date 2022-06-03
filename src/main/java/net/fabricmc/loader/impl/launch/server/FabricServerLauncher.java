@@ -54,7 +54,7 @@ public class FabricServerLauncher {
 			}
 		}
 
-		boolean dev = Boolean.parseBoolean(System.getProperty(SystemProperties.DEVELOPMENT, "false"));
+		boolean dev = SystemProperties.isSet(SystemProperties.DEVELOPMENT);
 
 		if (!dev) {
 			try {

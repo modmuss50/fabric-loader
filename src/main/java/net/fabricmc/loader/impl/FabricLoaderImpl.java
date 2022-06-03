@@ -331,7 +331,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	private <T> void sortMods(List<T> mods, Function<T, String> idGetter) {
 		// shuffle mods in-dev to reduce the risk of false order reliance, apply late load requests
 
-		if (isDevelopmentEnvironment() && System.getProperty(SystemProperties.DEBUG_DISABLE_MOD_SHUFFLE) == null) {
+		if (isDevelopmentEnvironment() && !SystemProperties.isSet(SystemProperties.DEBUG_DISABLE_MOD_SHUFFLE)) {
 			Collections.shuffle(mods);
 		}
 

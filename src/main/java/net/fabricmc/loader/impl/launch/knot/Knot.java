@@ -131,11 +131,11 @@ public final class Knot extends FabricLauncherBase {
 		Log.finishBuiltinConfig();
 		Log.info(LogCategory.GAME_PROVIDER, "Loading %s %s with Fabric Loader %s", provider.getGameName(), provider.getRawGameVersion(), FabricLoaderImpl.VERSION);
 
-		isDevelopment = Boolean.parseBoolean(System.getProperty(SystemProperties.DEVELOPMENT, "false"));
+		isDevelopment = SystemProperties.isSet(SystemProperties.DEVELOPMENT);
 
 		// Setup classloader
 		// TODO: Provide KnotCompatibilityClassLoader in non-exclusive-Fabric pre-1.13 environments?
-		boolean useCompatibility = provider.requiresUrlClassLoader() || Boolean.parseBoolean(System.getProperty("fabric.loader.useCompatibilityClassLoader", "false"));
+		boolean useCompatibility = provider.requiresUrlClassLoader() || SystemProperties.isSet(SystemProperties.USE_COMPAT_CL);
 		classLoader = KnotClassLoaderInterface.create(useCompatibility, isDevelopment(), envType, provider);
 		ClassLoader cl = classLoader.getClassLoader();
 
