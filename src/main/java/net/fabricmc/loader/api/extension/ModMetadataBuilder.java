@@ -27,6 +27,7 @@ import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
@@ -45,7 +46,9 @@ public interface ModMetadataBuilder extends ModMetadata {
 	ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive);
 
 	ModMetadataBuilder setEnvironment(ModEnvironment environment);
-	ModMetadataBuilder setLoadPhase(String loadPhase);
+	ModMetadataBuilder setLoadCondition(/* @Nullable */ ModLoadCondition loadCondition);
+	ModMetadataBuilder setLoadPhase(/* @Nullable */ String loadPhase);
+
 	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter);
 	ModMetadataBuilder addNestedMod(String location);
 	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment);

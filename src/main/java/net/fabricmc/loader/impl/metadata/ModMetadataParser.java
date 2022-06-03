@@ -32,7 +32,7 @@ import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 
 public final class ModMetadataParser {
-	public static final int LATEST_VERSION = 1;
+	public static final int LATEST_VERSION = 2;
 	/**
 	 * Keys that will be ignored by any mod metadata parser.
 	 */
@@ -157,6 +157,9 @@ public final class ModMetadataParser {
 			break;
 		case 1:
 			V1ModMetadataParser.parse(reader, warnings, builder);
+			break;
+		case 2:
+			V2ModMetadataParser.parse(reader, warnings, builder);
 			break;
 		default:
 			if (schemaVersion > 0) {

@@ -36,6 +36,7 @@ import java.util.zip.ZipInputStream;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.extension.ModCandidate;
 import net.fabricmc.loader.api.metadata.ModDependency;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.game.GameProvider.BuiltinMod;
 import net.fabricmc.loader.impl.metadata.AbstractModMetadata;
@@ -161,6 +162,8 @@ public final class ModCandidateImpl implements ModCandidate, DomainObject.Mod {
 	}
 
 	public ModLoadCondition getLoadCondition() {
+		if (metadata.getLoadCondition() != null) return metadata.getLoadCondition();
+
 		return minNestLevel == 0 ? ModLoadCondition.ALWAYS : ModLoadCondition.IF_POSSIBLE;
 	}
 

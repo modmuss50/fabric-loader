@@ -36,6 +36,7 @@ import org.sat4j.specs.ContradictionException;
 import org.sat4j.specs.TimeoutException;
 
 import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.extension.ModCandidate;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModDependency.Kind;
@@ -45,8 +46,11 @@ import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.util.PhaseSorting;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
+import net.fabricmc.loader.impl.util.log.LogLevel;
 
 public class ModResolver {
+	private static final boolean LOG_VERBOSE = Log.shouldLog(LogLevel.DEBUG, LogCategory.RESOLUTION);
+
 	public static List<ModCandidateImpl> resolve(ResolutionContext context) throws ModResolutionException {
 		long startTime = System.nanoTime();
 
@@ -59,6 +63,8 @@ public class ModResolver {
 	}
 
 	private static List<ModCandidateImpl> findCompatibleSet(ResolutionContext context) throws ModResolutionException {
+		if (LOG_VERBOSE) Log.debug(LogCategory.RESOLUTION, "Starting resolution with %d mods: %s", context.initialMods.size(), context.initialMods);
+
 		addMods(context.initialMods, context);
 
 		// preselect mods, check for builtin mod collisions
@@ -89,6 +95,8 @@ public class ModResolver {
 			selectMod(mod, context);
 		}
 
+		if (LOG_VERBOSE) Log.debug(LogCategory.RESOLUTION, "Preselected %d mods: %s", preselectedMods.size(), preselectedMods);
+
 		// phase sorting
 
 		PhaseSorting<String, ModCandidateImpl> sorting = new PhaseSorting<>();
@@ -113,6 +121,11 @@ public class ModResolver {
 				for (ModCandidateImpl mod : sorting.get(phase)) {
 					mod.enableGreedyLoad = true;
 				}
+			}
+
+			if (LOG_VERBOSE) {
+				List<ModCandidateImpl> mod = context.allModsSorted.stream().filter(m -> m.enableGreedyLoad).collect(Collectors.toList());
+				Log.debug(LogCategory.RESOLUTION, "Phase %s: %d mods: %s", phase, mod.size(), mod);
 			}
 
 			ModSolver.Result result;
@@ -149,8 +162,11 @@ public class ModResolver {
 			}
 
 			if (!context.currentSelectedMods.isEmpty()) {
+				if (LOG_VERBOSE) Log.debug(LogCategory.RESOLUTION, "selected %d mods: %s", context.currentSelectedMods.size(), context.currentSelectedMods);
 				if (context.phaseSelectHandler != null) context.phaseSelectHandler.onSelect(context.currentSelectedMods, phase, context);
 				context.currentSelectedMods.clear();
+			} else {
+				if (LOG_VERBOSE) Log.debug(LogCategory.RESOLUTION, "no mods selected");
 			}
 
 			if (context.addedMods.isEmpty()) {
@@ -276,7 +292,7 @@ public class ModResolver {
 				if (disabledMatches == null) continue; // no disabled id matches
 
 				for (ModCandidateImpl m : disabledMatches) {
-					if (dep.matches(m.getVersion())) { // disabled version match -> remove dep
+					if (depMatches(dep, m)) { // disabled version match -> remove dep
 						((ModDependencyImpl) dep).setKind(Kind.SUGGESTS);
 						break;
 					}
@@ -330,6 +346,28 @@ public class ModResolver {
 		}
 	};
 
+	static boolean depMatches(ModDependency dep, ModCandidateImpl mod) {
+		String id = dep.getModId();
+		Version version;
+
+		if (id.equals(mod.getId())) {
+			version = mod.getVersion();
+		} else {
+			version = null;
+
+			for (ProvidedMod m : mod.getAdditionallyProvidedMods()) {
+				if (id.equals(m.getId())) {
+					version = m.getVersion();
+					break;
+				}
+			}
+
+			if (version == null) return false;
+		}
+
+		return dep.matches(version);
+	}
+
 	static void selectMod(ModCandidateImpl mod, ResolutionContext context) throws ModResolutionException {
 		ModCandidateImpl prev = context.selectedMods.put(mod.getId(), mod);
 		if (prev != null && hasExclusiveId(prev, mod.getId())) throw new ModResolutionException("duplicate mod %s", mod.getId());
@@ -339,7 +377,7 @@ public class ModResolver {
 
 			if (provided.isExclusive()) {
 				prev = context.selectedMods.put(id, mod);
-				if (prev != null && hasExclusiveId(prev, id)) throw new ModResolutionException("duplicate provided mod %s", id);
+				if (prev != null && hasExclusiveId(prev, id)) throw new ModResolutionException("duplicate provided mod %s by %s and %s", id, mod, prev);
 			} else {
 				prev = context.selectedMods.putIfAbsent(id, mod);
 			}

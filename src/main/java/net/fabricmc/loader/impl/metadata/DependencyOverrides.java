@@ -193,7 +193,7 @@ public final class DependencyOverrides {
 			try {
 				ret.add(new ModDependencyImpl(kind, modId, matcherStringList));
 			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e);
+				throw new ParseMetadataException(e, reader);
 			}
 		}
 

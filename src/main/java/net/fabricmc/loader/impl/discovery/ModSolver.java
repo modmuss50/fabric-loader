@@ -43,6 +43,7 @@ import org.sat4j.specs.TimeoutException;
 import net.fabricmc.loader.api.SemanticVersion;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ModDependency;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.discovery.Explanation.ErrorKind;
@@ -596,19 +597,19 @@ final class ModSolver {
 				if (!enableOptional && dep.getKind().isSoft()) continue;
 				if (context.selectedMods.containsKey(dep.getModId())) continue;
 
-				List<? extends DomainObject.Mod> availableMods = context.modsById.get(dep.getModId());
+				List<ModCandidateImpl> available = context.modsById.get(dep.getModId());
 
-				if (availableMods != null) {
-					for (DomainObject.Mod m : availableMods) {
-						if (dep.matches(m.getVersion())) suitableMods.add(m);
+				if (available != null) {
+					for (ModCandidateImpl m : available) {
+						if (ModResolver.depMatches(dep, m)) suitableMods.add(m);
 					}
 				}
 
 				if (installableMods != null) {
-					availableMods = installableMods.get(dep.getModId());
+					List<AddModVar> installable = installableMods.get(dep.getModId());
 
-					if (availableMods != null) {
-						for (DomainObject.Mod m : availableMods) {
+					if (installable != null) {
+						for (DomainObject.Mod m : installable) {
 							if (dep.matches(m.getVersion())) suitableMods.add(m);
 						}
 					}
@@ -699,7 +700,7 @@ final class ModSolver {
 				if (selectedMod != null) { // dep is already selected = present
 					if (!removalSim) {
 						if (!dep.getKind().isSoft() // .. and is a hard dep
-								&& dep.matches(selectedMod.getVersion()) != dep.getKind().isPositive()) { // ..but isn't suitable (DEPENDS without match or BREAKS with match)
+								&& ModResolver.depMatches(dep, selectedMod) != dep.getKind().isPositive()) { // ..but isn't suitable (DEPENDS without match or BREAKS with match)
 							if (depDisableSim) {
 								dependencyHelper.setTrue(getCreateDisableDepVar(dep, disabledDeps), new Explanation(ErrorKind.HARD_DEP, mod, dep));
 							} else {
@@ -708,24 +709,24 @@ final class ModSolver {
 						}
 
 						continue;
-					} else if (dep.matches(selectedMod.getVersion())) {
+					} else if (ModResolver.depMatches(dep, selectedMod)) {
 						suitableMods.add(selectedMod);
 					}
 				}
 
-				List<? extends DomainObject.Mod> availableMods = context.modsById.get(dep.getModId());
+				List<ModCandidateImpl> available = context.modsById.get(dep.getModId());
 
-				if (availableMods != null) {
-					for (DomainObject.Mod m : availableMods) {
-						if (dep.matches(m.getVersion())) suitableMods.add(m);
+				if (available != null) {
+					for (ModCandidateImpl m : available) {
+						if (ModResolver.depMatches(dep, m)) suitableMods.add(m);
 					}
 				}
 
 				if (installableMods != null) {
-					availableMods = installableMods.get(dep.getModId());
+					List<AddModVar> installable = installableMods.get(dep.getModId());
 
-					if (availableMods != null) {
-						for (DomainObject.Mod m : availableMods) {
+					if (installable != null) {
+						for (DomainObject.Mod m : installable) {
 							if (dep.matches(m.getVersion())) suitableMods.add(m);
 						}
 					}
@@ -818,7 +819,7 @@ final class ModSolver {
 				int prio = priorities.get(mod);
 				BigInteger weight;
 
-				if (mod.getLoadCondition().ordinal() > ModLoadCondition.IF_POSSIBLE.ordinal()) { // non-greedy (optional)
+				if (!mod.enableGreedyLoad || mod.getLoadCondition().ordinal() > ModLoadCondition.IF_POSSIBLE.ordinal()) { // non-greedy (optional)
 					weight = TWO.pow(prio + 1);
 				} else { // greedy
 					weight = TWO.pow(context.allModsSorted.size() - prio).negate();
@@ -1123,10 +1124,10 @@ final class ModSolver {
 		for (ModDependency dep : mod.getDependencies()) {
 			if (dep.getKind() == ModDependency.Kind.DEPENDS) {
 				ModCandidateImpl m = mods.get(dep.getModId());
-				if (m == null || !dep.matches(m.getVersion())) return false;
+				if (m == null || !ModResolver.depMatches(dep, m)) return false;
 			} else if (dep.getKind() == ModDependency.Kind.BREAKS) {
 				ModCandidateImpl m = mods.get(dep.getModId());
-				if (m != null && dep.matches(m.getVersion())) return false;
+				if (m != null && ModResolver.depMatches(dep, m)) return false;
 			}
 		}
 

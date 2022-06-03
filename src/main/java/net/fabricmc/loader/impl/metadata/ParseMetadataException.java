@@ -37,6 +37,10 @@ public class ParseMetadataException extends Exception {
 		super(message, throwable);
 	}
 
+	public ParseMetadataException(Throwable t, JsonReader reader) {
+		super((t.getMessage() != null ? t.getMessage() : "while reading").concat(reader.locationString()), t);
+	}
+
 	public ParseMetadataException(Throwable t) {
 		super(t);
 	}

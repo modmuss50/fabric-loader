@@ -349,7 +349,7 @@ final class V0ModMetadataParser {
 			try {
 				builder.addDependency(kind, modId, VersionPredicate.parse(versionMatchers));
 			} catch (VersionParsingException e) {
-				throw new ParseMetadataException(e);
+				throw new ParseMetadataException(e, reader);
 			}
 		}
 

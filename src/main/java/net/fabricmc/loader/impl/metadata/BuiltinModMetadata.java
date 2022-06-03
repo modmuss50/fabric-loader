@@ -31,6 +31,7 @@ import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
@@ -93,6 +94,11 @@ public final class BuiltinModMetadata extends AbstractModMetadata {
 	@Override
 	public ModEnvironment getEnvironment() {
 		return environment;
+	}
+
+	@Override
+	public ModLoadCondition getLoadCondition() {
+		return ModLoadCondition.ALWAYS;
 	}
 
 	@Override

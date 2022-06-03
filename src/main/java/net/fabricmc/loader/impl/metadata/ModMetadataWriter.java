@@ -32,6 +32,7 @@ import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
+import net.fabricmc.loader.impl.discovery.LoadPhases;
 import net.fabricmc.loader.impl.lib.gson.JsonWriter;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MixinEntry;
 
@@ -42,7 +43,7 @@ final class ModMetadataWriter {
 
 		jw.beginObject();
 
-		jw.name("schemaVersion").value(1);
+		jw.name("schemaVersion").value(2);
 		jw.name("id").value(meta.id);
 		jw.name("version").value(meta.version.getFriendlyString());
 
@@ -51,10 +52,23 @@ final class ModMetadataWriter {
 			jw.beginArray();
 
 			for (ProvidedMod provided : meta.providedMods) {
-				if (!provided.getVersion().equals(meta.version)) throw new UnsupportedOperationException("latest metadata format doesn't support providing mods with a different version");
-				if (!provided.isExclusive()) throw new UnsupportedOperationException("latest metadata format doesn't support non-exclusive mod providing");
+				if (provided.getVersion().equals(meta.version) && provided.isExclusive()) {
+					jw.value(provided.getId());
+				} else {
+					jw.beginObject();
 
-				jw.value(provided.getId());
+					jw.name("id").value(provided.getId());
+
+					if (!provided.getVersion().equals(meta.version)) {
+						jw.name("version").value(provided.getVersion().getFriendlyString());
+					}
+
+					if (!provided.isExclusive()) {
+						jw.name("exclusive").value(false);
+					}
+
+					jw.endObject();
+				}
 			}
 
 			jw.endArray();
@@ -64,13 +78,24 @@ final class ModMetadataWriter {
 			jw.name("environment").value(serializeEnvironment(meta.environment));
 		}
 
+		if (meta.getLoadCondition() != null) {
+			jw.name("loadCondition").value(meta.getLoadCondition().name().toLowerCase(Locale.ENGLISH));
+		}
+
+		if (!meta.loadPhase.equals(LoadPhases.DEFAULT)) {
+			jw.name("loadPhase").value(meta.loadPhase);
+		}
+
 		if (!meta.entrypoints.isEmpty()) {
 			jw.name("entrypoints");
 			jw.beginObject();
 
 			for (Map.Entry<String, List<EntrypointMetadata>> entry : meta.entrypoints.entrySet()) {
 				jw.name(entry.getKey());
-				jw.beginArray();
+
+				boolean multiple = entry.getValue().size() != 1;
+
+				if (multiple) jw.beginArray();
 
 				for (EntrypointMetadata entrypoint : entry.getValue()) {
 					if (entrypoint.getAdapter().equals(ModMetadataBuilderImpl.DEFAULT_ENTRYPOINT_ADAPTER)) {
@@ -83,7 +108,7 @@ final class ModMetadataWriter {
 					}
 				}
 
-				jw.endArray();
+				if (multiple) jw.endArray();
 			}
 
 			jw.endObject();

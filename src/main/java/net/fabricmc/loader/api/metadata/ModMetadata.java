@@ -85,6 +85,8 @@ public interface ModMetadata {
 	 */
 	ModEnvironment getEnvironment();
 
+	ModLoadCondition getLoadCondition();
+
 	/**
 	 * Returns all of the mod's dependencies.
 	 */

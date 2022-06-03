@@ -30,6 +30,7 @@ import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 
@@ -47,6 +48,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	// Optional (mod loading)
 	private final ModEnvironment environment;
+	private final ModLoadCondition loadCondition;
 	private final String loadPhase;
 	private final Map<String, List<EntrypointMetadata>> entrypoints;
 	private final Collection<NestedJarEntry> jars;
@@ -78,7 +80,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 	ModMetadataImpl(int schemaVersion,
 			String id, Version version, Collection<? extends ProvidedMod> providedMods,
-			ModEnvironment environment, String loadPhase,
+			ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
 			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
 			Collection<MixinEntry> mixins, /* @Nullable */ String accessWidener,
 			Collection<ModDependency> dependencies,
@@ -92,6 +94,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		this.version = version;
 		this.providedMods = unmodifiable(providedMods);
 		this.environment = environment;
+		this.loadCondition = loadCondition;
 		this.loadPhase = loadPhase;
 		this.entrypoints = unmodifiable(entrypoints);
 		this.jars = unmodifiable(jars);
@@ -176,6 +179,11 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	@Override
 	public boolean loadsInEnvironment(EnvType type) {
 		return this.environment.matches(type);
+	}
+
+	@Override
+	public ModLoadCondition getLoadCondition() {
+		return loadCondition;
 	}
 
 	@Override

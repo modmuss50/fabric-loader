@@ -28,6 +28,7 @@ import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
+import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
@@ -79,8 +80,13 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	}
 
 	@Override
+	public ModLoadCondition getLoadCondition() {
+		return parent.getLoadCondition();
+	}
+
+	@Override
 	public String getLoadPhase() {
-		return LoadPhases.BUILTIN;
+		return LoadPhases.DEFAULT;
 	}
 
 	@Override
