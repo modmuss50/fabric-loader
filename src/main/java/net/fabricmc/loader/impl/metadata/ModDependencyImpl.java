@@ -22,6 +22,7 @@ import java.util.List;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
@@ -32,14 +33,21 @@ public final class ModDependencyImpl implements ModDependency {
 	private final String modId;
 	private final Collection<VersionPredicate> ranges;
 	private final ModEnvironment environment;
+	private final String reason;
+	private final ModDependency.Metadata metadata;
+	private final ModDependency.Metadata rootMetadata;
 
 	ModDependencyImpl(Kind kind,
 			String modId, Collection<VersionPredicate> versionOptions,
-			ModEnvironment environment) {
+			ModEnvironment environment, String reason,
+			ModDependency.Metadata metadata, ModDependency.Metadata rootMetadata) {
 		this.kind = kind;
 		this.modId = modId;
 		this.ranges = versionOptions;
 		this.environment = environment;
+		this.reason = reason;
+		this.metadata = metadata;
+		this.rootMetadata = rootMetadata;
 	}
 
 	@Override
@@ -56,8 +64,24 @@ public final class ModDependencyImpl implements ModDependency {
 		return this.modId;
 	}
 
+	ModEnvironment getEnvironment() {
+		return environment;
+	}
+
 	boolean appliesInEnvironment(EnvType type) {
 		return environment.matches(type);
+	}
+
+	String getReason() {
+		return reason;
+	}
+
+	ModDependency.Metadata getMetadata() {
+		return metadata;
+	}
+
+	ModDependency.Metadata getRootMetadata() {
+		return rootMetadata;
 	}
 
 	@Override
@@ -123,5 +147,44 @@ public final class ModDependencyImpl implements ModDependency {
 		}
 
 		return ret;
+	}
+
+	static final class Metadata implements ModDependency.Metadata {
+		private final String id;
+		private final String name;
+		private final String description;
+		private final ContactInformation contact;
+
+		Metadata(String id, String name, String description, ContactInformation contact) {
+			this.id = id;
+			this.name = name;
+			this.description = description;
+
+			if (contact != null) {
+				this.contact = contact;
+			} else {
+				this.contact = ContactInformation.EMPTY;
+			}
+		}
+
+		@Override
+		public String getId() {
+			return id;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		@Override
+		public String getDescription() {
+			return description;
+		}
+
+		@Override
+		public ContactInformation getContact() {
+			return contact;
+		}
 	}
 }

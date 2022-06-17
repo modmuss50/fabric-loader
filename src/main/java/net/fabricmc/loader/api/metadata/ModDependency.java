@@ -117,4 +117,11 @@ public interface ModDependency {
 			return ret;
 		}
 	}
+
+	public interface Metadata {
+		String getId();
+		String getName();
+		String getDescription();
+		ContactInformation getContact();
+	}
 }

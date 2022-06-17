@@ -24,6 +24,7 @@ import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyBuilder;
+import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
@@ -44,7 +45,7 @@ final class V2ModMetadataParser {
 	 * <li>added loadPhase
 	 * <li>accessWidener -> classTweakers, can take string or array of strings
 	 * <li>license -> licenses
-	 * <li>dependencies accept object value form with additional environment
+	 * <li>dependencies accept object value form with additional environment, reason, metadata (id, name, description, contact), root metadata (same as dep metadata)
 	 * </ul>
 	 */
 	static void parse(JsonReader reader, List<ParseWarning> warnings, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
@@ -313,6 +314,8 @@ final class V2ModMetadataParser {
 			if (reader.peek() != JsonToken.BEGIN_OBJECT) {
 				V0ModMetadataParser.readDependencyValue(reader, depBuilder);
 			} else {
+				ModDependencyMetadataBuilder metaBuilder = ModDependencyMetadataBuilder.create();
+				boolean metaUsed = false;
 				reader.beginObject();
 
 				while (reader.hasNext()) {
@@ -325,18 +328,72 @@ final class V2ModMetadataParser {
 					case "environment":
 						depBuilder.setEnvironment(V1ModMetadataParser.readEnvironment(reader));
 						break;
+					case "reason":
+						depBuilder.setReason(ParserUtil.readString(reader, key));
+						break;
+					case "root":
+						switch (reader.peek()) {
+						case STRING:
+							depBuilder.setRootMetadata(ModDependencyMetadataBuilder.create().setModId(ParserUtil.readString(reader, key)).build());
+							break;
+						case BEGIN_OBJECT: {
+							ModDependencyMetadataBuilder rootMetaBuilder = ModDependencyMetadataBuilder.create();
+							reader.beginObject();
+
+							while (reader.hasNext()) {
+								String metaKey = reader.nextName();
+
+								if (!readDependencyMetadata(reader, metaKey, rootMetaBuilder)) {
+									throw new ParseMetadataException("Invalid key "+metaKey+" in dependency root value", reader);
+								}
+							}
+
+							reader.endObject();
+							depBuilder.setRootMetadata(rootMetaBuilder.build());
+							break;
+						}
+						default:
+							throw new ParseMetadataException("Dependency root metadata must be a string or object", reader);
+						}
 					default:
-						throw new ParseMetadataException("Invalid key "+key+" in dependency value", reader);
+						if (readDependencyMetadata(reader, key, metaBuilder)) {
+							metaUsed = true;
+						} else {
+							throw new ParseMetadataException("Invalid key "+key+" in dependency value", reader);
+						}
 					}
 				}
 
 				reader.endObject();
+
+				if (metaUsed) depBuilder.setMetadata(metaBuilder.build());
 			}
 
 			builder.addDependency(depBuilder.build());
 		}
 
 		reader.endObject();
+	}
+
+	private static boolean readDependencyMetadata(JsonReader reader, String key, ModDependencyMetadataBuilder builder) throws IOException, ParseMetadataException {
+		switch (key) {
+		case "id":
+			builder.setModId(ParserUtil.readString(reader, key));
+			break;
+		case "name":
+			builder.setName(ParserUtil.readString(reader, key));
+			break;
+		case "description":
+			builder.setDescription(ParserUtil.readString(reader, key));
+			break;
+		case "contact":
+			builder.setContact(V1ModMetadataParser.readContactInfo(reader));
+			break;
+		default:
+			return false;
+		}
+
+		return true;
 	}
 
 	private static void readPeople(JsonReader reader, boolean isAuthor, ModMetadataBuilder builder) throws IOException, ParseMetadataException {

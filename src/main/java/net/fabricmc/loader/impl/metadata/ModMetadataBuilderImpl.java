@@ -242,6 +242,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	@Override
 	public ModMetadataBuilder addDependency(ModDependency dependency) {
 		Objects.requireNonNull(dependency, "null dependency");
+		if (dependency.getClass() != ModDependencyImpl.class) throw new IllegalArgumentException("invalid dependency class "+dependency.getClass().getName());
 
 		dependencies.add((ModDependencyImpl) dependency);
 
@@ -481,9 +482,14 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		private String modId;
 		private final Collection<VersionPredicate> versionOptions = new ArrayList<>();
 		private ModEnvironment environment = ModEnvironment.UNIVERSAL;
+		private String reason;
+		private ModDependency.Metadata metadata;
+		private ModDependency.Metadata rootMetadata;
 
 		@Override
 		public ModDependencyBuilder setKind(ModDependency.Kind kind) {
+			Objects.requireNonNull(kind, "null kind");
+
 			this.kind = kind;
 
 			return this;
@@ -491,6 +497,8 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 
 		@Override
 		public ModDependencyBuilder setModId(String modId) {
+			Objects.requireNonNull(modId, "null modId");
+
 			this.modId = modId;
 
 			return this;
@@ -503,6 +511,8 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 
 		@Override
 		public ModDependencyBuilder addVersion(VersionPredicate predicate) {
+			Objects.requireNonNull(predicate, "null predicate");
+
 			versionOptions.add(predicate);
 
 			return this;
@@ -523,12 +533,79 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		}
 
 		@Override
+		public ModDependencyBuilder setReason(/* @Nullable */ String reason) {
+			this.reason = reason;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder setMetadata(/* @Nullable */ ModDependency.Metadata metadata) {
+			if (metadata != null && metadata.getClass() != ModDependencyImpl.Metadata.class) throw new IllegalArgumentException("invalid metadata class "+metadata.getClass().getName());
+
+			this.metadata = metadata;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder setRootMetadata(/* @Nullable */ ModDependency.Metadata metadata) {
+			if (metadata != null && metadata.getClass() != ModDependencyImpl.Metadata.class) throw new IllegalArgumentException("invalid metadata class "+metadata.getClass().getName());
+
+			this.rootMetadata = metadata;
+
+			return this;
+		}
+
+		@Override
 		public ModDependency build() {
 			if (kind == null) throw new IllegalStateException("kind is not set");
 			if (modId == null) throw new IllegalStateException("modId is not set");
 			if (versionOptions.isEmpty()) versionOptions.add(VersionPredicate.any());
 
-			return new ModDependencyImpl(kind, modId, versionOptions, environment);
+			return new ModDependencyImpl(kind, modId, versionOptions,
+					environment, reason,
+					metadata, rootMetadata);
+		}
+	}
+
+	public static final class ModDependencyMetadataBuilderImpl implements ModDependencyMetadataBuilder {
+		private String modId;
+		private String name;
+		private String description;
+		private ContactInformation contact;
+
+		@Override
+		public ModDependencyMetadataBuilder setModId(/* @Nullable */ String modId) {
+			this.modId = modId;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyMetadataBuilder setName(/* @Nullable */ String name) {
+			this.name = name;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyMetadataBuilder setDescription(/* @Nullable */ String description) {
+			this.description = description;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyMetadataBuilder setContact(/* @Nullable */ ContactInformation contact) {
+			this.contact = contact;
+
+			return this;
+		}
+
+		@Override
+		public ModDependency.Metadata build() {
+			return new ModDependencyImpl.Metadata(modId, name, description, contact);
 		}
 	}
 

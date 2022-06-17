@@ -34,6 +34,7 @@ import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ContactInformationBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ModDependencyBuilderImpl;
+import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ModDependencyMetadataBuilderImpl;
 
 public interface ModMetadataBuilder extends ModMetadata {
 	static ModMetadataBuilder create() {
@@ -93,8 +94,24 @@ public interface ModMetadataBuilder extends ModMetadata {
 		ModDependencyBuilder addVersion(VersionPredicate predicate);
 		ModDependencyBuilder addVersions(Collection<VersionPredicate> predicates);
 		ModDependencyBuilder setEnvironment(ModEnvironment environment);
+		ModDependencyBuilder setReason(/* @Nullable */ String reason);
+		ModDependencyBuilder setMetadata(/* @Nullable */ ModDependency.Metadata metadata);
+		ModDependencyBuilder setRootMetadata(/* @Nullable */ ModDependency.Metadata metadata);
 
 		ModDependency build();
+	}
+
+	interface ModDependencyMetadataBuilder {
+		static ModDependencyMetadataBuilder create() {
+			return new ModDependencyMetadataBuilderImpl();
+		}
+
+		ModDependencyMetadataBuilder setModId(/* @Nullable */ String modId);
+		ModDependencyMetadataBuilder setName(/* @Nullable */ String name);
+		ModDependencyMetadataBuilder setDescription(/* @Nullable */ String description);
+		ModDependencyMetadataBuilder setContact(/* @Nullable */ ContactInformation contact);
+
+		ModDependency.Metadata build();
 	}
 
 	interface ContactInformationBuilder {
