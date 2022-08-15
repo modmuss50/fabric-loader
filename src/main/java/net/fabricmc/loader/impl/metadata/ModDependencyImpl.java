@@ -28,10 +28,9 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
-import net.fabricmc.loader.impl.FormattedException;
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.util.Expression;
 import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
-import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
 
 public final class ModDependencyImpl implements ModDependency {
 	private Kind kind;
@@ -95,22 +94,7 @@ public final class ModDependencyImpl implements ModDependency {
 	}
 
 	public boolean isDisabledByCondition(Map<String, DynamicFunction> expressionFunctions, String modId) {
-		if (condition == null) return false;
-
-		try {
-			condition = condition.partialEvaluate(expressionFunctions);
-
-			Object result = condition.getResult();
-			if (result == null) return false;
-
-			if (!(result instanceof Boolean)) throw new ExpressionEvaluateException("non-boolean value");
-
-			return (boolean) result;
-		} catch (ExpressionEvaluateException e) {
-			throw new FormattedException("Dependency condition evaluation failed",
-					"The mod "+modId+" supplied a dependency condition that couldn't be evaluated",
-					e);
-		}
+		return FabricLoaderImpl.isDisabled(condition, true, expressionFunctions, "dependency", modId);
 	}
 
 	String getReason() {

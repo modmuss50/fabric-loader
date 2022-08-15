@@ -65,9 +65,12 @@ import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 import net.fabricmc.loader.impl.metadata.VersionOverrides;
 import net.fabricmc.loader.impl.util.DefaultLanguageAdapter;
+import net.fabricmc.loader.impl.util.Expression;
 import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
+import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
 import net.fabricmc.loader.impl.util.ExpressionFunctions;
 import net.fabricmc.loader.impl.util.LoaderUtil;
+import net.fabricmc.loader.impl.util.StringUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -206,6 +209,32 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		return expressionFunctions;
 	}
 
+	public boolean isDisabled(Expression condition, boolean allowPartial,
+			String name, String modId) {
+		return isDisabled(condition, allowPartial, expressionFunctions, name, modId);
+	}
+
+	public static boolean isDisabled(Expression condition, boolean allowPartial, Map<String, DynamicFunction> expressionFunctions,
+			String name, String modId) {
+		if (condition == null) return false;
+
+		try {
+			if (allowPartial) {
+				Object res = condition.evaluate(expressionFunctions);
+				if (res == null) return false;
+				if (!(res instanceof Boolean)) throw new ExpressionEvaluateException("non-boolean value");
+
+				return (boolean) res;
+			} else {
+				return condition.evaluateBoolean(expressionFunctions);
+			}
+		} catch (ExpressionEvaluateException e) {
+			throw new FormattedException(StringUtil.capitalize(name)+" config condition evaluation failed",
+					"The mod "+modId+" supplied a "+name+" config condition that couldn't be evaluated",
+					e);
+		}
+	}
+
 	public void load() {
 		if (provider == null) throw new IllegalStateException("game provider not set");
 		if (frozen) throw new IllegalStateException("Frozen - cannot load additional mods!");
@@ -313,6 +342,8 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		for (ModContainerImpl mod : createdMods) {
 			try {
 				for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(EXTENSION_ENTRY_POINT)) {
+					if (isDisabled(in.getCondition(), false, "entrypoint", mod.getId())) continue;
+
 					foundEntrypoints = true;
 					entrypointStorage.add(mod, EXTENSION_ENTRY_POINT, in, adapterMap);
 				}
@@ -529,7 +560,11 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 				}
 
 				for (String key : mod.getMetadata().getEntrypointKeys()) {
+					if (key.equals(EXTENSION_ENTRY_POINT)) continue;
+
 					for (EntrypointMetadata in : mod.getMetadata().getEntrypoints(key)) {
+						if (isDisabled(in.getCondition(), false, "entrypoint", mod.getId())) continue;
+
 						entrypointStorage.add(mod, key, in, adapterMap);
 					}
 				}

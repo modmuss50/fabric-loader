@@ -154,9 +154,7 @@ public final class EntrypointStorage {
 		}
 
 		Log.debug(LogCategory.ENTRYPOINT, "Registering new-style initializer %s for mod %s (key %s)", metadata.getValue(), modContainer.getMetadata().getId(), key);
-		getOrCreateEntries(key).add(new NewEntry(
-				modContainer, adapterMap.get(metadata.getAdapter()), metadata.getValue()
-				));
+		getOrCreateEntries(key).add(new NewEntry(modContainer, adapterMap.get(metadata.getAdapter()), metadata.getValue()));
 	}
 
 	public boolean hasEntrypoints(String key) {

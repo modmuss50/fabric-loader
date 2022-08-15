@@ -32,11 +32,9 @@ import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
-import net.fabricmc.loader.impl.FormattedException;
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.util.Expression;
 import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
-import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
-import net.fabricmc.loader.impl.util.StringUtil;
 
 final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMetadata {
 	static final IconEntry NO_ICON = size -> Optional.empty();
@@ -282,15 +280,9 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 
 		// This is only ever called once, so no need to store the result of this.
 		for (ConditionalConfigEntry entry : entries) {
-			try {
-				if (entry.environment.matches(type)
-						&& (entry.condition == null || entry.condition.evaluateBoolean(expressionFunctions))) {
-					ret.add(entry.config);
-				}
-			} catch (ExpressionEvaluateException e) {
-				throw new FormattedException(StringUtil.capitalize(name)+" config condition evaluation failed",
-						"The mod "+getId()+" supplied a "+name+" config condition that couldn't be evaluated",
-						e);
+			if (entry.environment.matches(type)
+					&& !FabricLoaderImpl.isDisabled(entry.condition, false, expressionFunctions, name, getId())) {
+				ret.add(entry.config);
 			}
 		}
 
@@ -390,6 +382,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 			return this.value;
 		}
 
+		@Override
 		public Expression getCondition() {
 			return condition;
 		}
