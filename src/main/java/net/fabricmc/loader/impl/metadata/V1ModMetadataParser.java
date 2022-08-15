@@ -182,7 +182,7 @@ final class V1ModMetadataParser {
 		reader.endObject();
 	}
 
-	static void readEntrypoint(JsonReader reader, String key, List<ParseWarning> warnings, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+	private static void readEntrypoint(JsonReader reader, String key, List<ParseWarning> warnings, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
 		String adapter = null;
 		String value = null;
 
@@ -204,13 +204,8 @@ final class V1ModMetadataParser {
 					value = reader.nextString();
 					break;
 				default:
-					if (warnings != null) {
-						warnings.add(new ParseWarning(reader, entryKey, "Invalid entry in entrypoint metadata"));
-						reader.skipValue();
-					} else {
-						throw new ParseMetadataException("Invalid key "+key+" in entrypoint entry", reader);
-					}
-
+					warnings.add(new ParseWarning(reader, entryKey, "Invalid entry in entrypoint metadata"));
+					reader.skipValue();
 					break;
 				}
 			}
@@ -225,7 +220,7 @@ final class V1ModMetadataParser {
 			throw new ParseMetadataException.MissingField("Entrypoint value must be present");
 		}
 
-		builder.addEntrypoint(key, value, adapter);
+		builder.addEntrypoint(key, value, adapter, null);
 	}
 
 	static void readNestedJarEntries(JsonReader reader, List<ParseWarning> warnings, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
@@ -279,7 +274,7 @@ final class V1ModMetadataParser {
 			switch (reader.peek()) {
 			case STRING:
 				// All mixin configs specified via string are assumed to be universal
-				builder.addMixinConfig(reader.nextString(), null);
+				builder.addMixinConfig(reader.nextString());
 				break;
 			case BEGIN_OBJECT:
 				reader.beginObject();
@@ -310,7 +305,7 @@ final class V1ModMetadataParser {
 					throw new ParseMetadataException.MissingField("Missing mandatory key 'config' in mixin entry!");
 				}
 
-				builder.addMixinConfig(config, environment);
+				builder.addMixinConfig(config, environment, null);
 				break;
 			default:
 				warnings.add(new ParseWarning(reader, "Mixin list must be a string or object"));
@@ -445,7 +440,7 @@ final class V1ModMetadataParser {
 				try {
 					size = Integer.parseInt(key);
 				} catch (NumberFormatException e) {
-					throw new ParseMetadataException("Could not parse icon size '" + key + "'!", e);
+					throw new ParseMetadataException("Could not parse icon size '" + key + "'!", e, reader);
 				}
 
 				if (size < 1) {

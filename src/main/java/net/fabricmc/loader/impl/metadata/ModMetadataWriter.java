@@ -19,6 +19,7 @@ package net.fabricmc.loader.impl.metadata;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -34,7 +35,8 @@ import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.discovery.LoadPhases;
 import net.fabricmc.loader.impl.lib.gson.JsonWriter;
-import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MixinEntry;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.ConditionalConfigEntry;
+import net.fabricmc.loader.impl.util.version.VersionIntervalImpl;
 
 final class ModMetadataWriter {
 	static void write(ModMetadataBuilderImpl meta, Writer writer) throws IOException {
@@ -98,12 +100,21 @@ final class ModMetadataWriter {
 				if (multiple) jw.beginArray();
 
 				for (EntrypointMetadata entrypoint : entry.getValue()) {
-					if (entrypoint.getAdapter().equals(ModMetadataBuilderImpl.DEFAULT_ENTRYPOINT_ADAPTER)) {
+					if (entrypoint.getAdapter().equals(ModMetadataBuilderImpl.DEFAULT_ENTRYPOINT_ADAPTER)
+							&& entrypoint.getCondition() == null) {
 						jw.value(entrypoint.getValue());
 					} else {
 						jw.beginObject();
 						jw.name("value").value(entrypoint.getValue());
-						jw.name("adapter").value(entrypoint.getAdapter());
+
+						if (!entrypoint.getAdapter().equals(ModMetadataBuilderImpl.DEFAULT_ENTRYPOINT_ADAPTER)) {
+							jw.name("adapter").value(entrypoint.getAdapter());
+						}
+
+						if (entrypoint.getCondition() != null) {
+							jw.name("condition").value(entrypoint.getCondition().toInfixString());
+						}
+
 						jw.endObject();
 					}
 				}
@@ -129,61 +140,74 @@ final class ModMetadataWriter {
 
 		if (!meta.mixins.isEmpty()) {
 			jw.name("mixins");
-			jw.beginArray();
-
-			for (MixinEntry mixin : meta.mixins) {
-				if (mixin.environment == ModEnvironment.UNIVERSAL) {
-					jw.value(mixin.config);
-				} else {
-					jw.beginObject();
-					jw.name("config").value(mixin.config);
-					jw.name("environment").value(serializeEnvironment(mixin.environment));
-					jw.endObject();
-				}
-			}
-
-			jw.endArray();
+			writeConditionalConfigEntries(meta.mixins, jw);
 		}
 
 		if (!meta.classTweakers.isEmpty()) {
 			jw.name("classTweakers");
-			boolean multiple = meta.classTweakers.size() != 1;
-
-			if (multiple) jw.beginArray();
-
-			for (String accessWidener : meta.classTweakers) {
-				jw.value(accessWidener);
-			}
-
-			if (multiple) jw.endArray();
+			writeConditionalConfigEntries(meta.classTweakers, jw);
 		}
 
 		if (!meta.dependencies.isEmpty()) {
-			Map<ModDependency.Kind, List<ModDependency>> groupedDeps = new EnumMap<>(ModDependency.Kind.class);
+			Map<ModDependency.Kind, List<ModDependencyImpl>> groupedDeps = new EnumMap<>(ModDependency.Kind.class);
 
-			for (ModDependency dep : meta.dependencies) {
+			for (ModDependencyImpl dep : meta.dependencies) {
 				groupedDeps.computeIfAbsent(dep.getKind(), ignore -> new ArrayList<>()).add(dep);
 			}
 
-			for (Map.Entry<ModDependency.Kind, List<ModDependency>> entry : groupedDeps.entrySet()) {
+			for (Map.Entry<ModDependency.Kind, List<ModDependencyImpl>> entry : groupedDeps.entrySet()) {
 				ModDependency.Kind kind = entry.getKey();
-				List<ModDependency> deps = entry.getValue();
+				List<ModDependencyImpl> deps = entry.getValue();
 				deps.sort(Comparator.comparing(ModDependency::getModId));
 
 				jw.name(kind.name().toLowerCase(Locale.ENGLISH));
 				jw.beginObject();
 
-				for (ModDependency dep : deps) {
+				for (ModDependencyImpl dep : deps) {
 					jw.name(dep.getModId());
-					boolean multiple = dep.getVersionRequirements().size() != 1;
 
-					if (multiple) jw.beginArray();
+					if (dep.getEnvironment() == ModEnvironment.UNIVERSAL
+							&& !dep.isInferEnvironment()
+							&& dep.getCondition() == null
+							&& dep.getReason() == null
+							&& dep.getMetadata() == null
+							&& dep.getRootMetadata() == null) {
+						writeDependencyVersionRequirements(dep, jw);
+					} else {
+						jw.beginObject();
 
-					for (VersionPredicate predicate : dep.getVersionRequirements()) {
-						jw.value(predicate.toString());
+						if (dep.getVersionRequirements().size() != 1
+								|| !dep.getVersionRequirements().iterator().next().getInterval().equals(VersionIntervalImpl.INFINITE)) {
+							jw.name("versions");
+							writeDependencyVersionRequirements(dep, jw);
+						}
+
+						if (dep.getEnvironment() != ModEnvironment.UNIVERSAL || dep.isInferEnvironment()) {
+							jw.name("environment");
+							jw.value(dep.isInferEnvironment() ? "auto" : serializeEnvironment(dep.getEnvironment()));
+						}
+
+						if (dep.getOriginalCondition() != null) {
+							jw.name("condition").value(dep.getOriginalCondition().toInfixString());
+						}
+
+						if (dep.getReason() != null) {
+							jw.name("reason").value(dep.getReason());
+						}
+
+						if (dep.getMetadata() != null) {
+							writeDependencyMetadata(dep.getMetadata(), dep.getModId(), jw);
+						}
+
+						if (dep.getRootMetadata() != null) {
+							jw.name("root");
+							jw.beginObject();
+							writeDependencyMetadata(dep.getRootMetadata(), null, jw);
+							jw.endObject();
+						}
+
+						jw.endObject();
 					}
-
-					if (multiple) jw.endArray();
 				}
 
 				jw.endObject();
@@ -282,6 +306,64 @@ final class ModMetadataWriter {
 
 	private static String serializeEnvironment(ModEnvironment env) {
 		return env.name().toLowerCase(Locale.ENGLISH);
+	}
+
+	private static void writeConditionalConfigEntries(Collection<ConditionalConfigEntry> entries, JsonWriter jw) throws IOException {
+		boolean multiple = entries.size() != 1;
+
+		if (multiple) jw.beginArray();
+
+		for (ConditionalConfigEntry entry : entries) {
+			if (entry.environment == ModEnvironment.UNIVERSAL && entry.condition == null) {
+				jw.value(entry.config);
+			} else {
+				jw.beginObject();
+				jw.name("config").value(entry.config);
+
+				if (entry.environment != ModEnvironment.UNIVERSAL) {
+					jw.name("environment").value(serializeEnvironment(entry.environment));
+				}
+
+				if (entry.condition != null) {
+					jw.name("condition").value(entry.condition.toInfixString());
+				}
+
+				jw.endObject();
+			}
+		}
+
+		if (multiple) jw.endArray();
+	}
+
+	private static void writeDependencyVersionRequirements(ModDependency dep, JsonWriter jw) throws IOException {
+		boolean multiple = dep.getVersionRequirements().size() != 1;
+
+		if (multiple) jw.beginArray();
+
+		for (VersionPredicate predicate : dep.getVersionRequirements()) {
+			jw.value(predicate.toString());
+		}
+
+		if (multiple) jw.endArray();
+	}
+
+	private static void writeDependencyMetadata(ModDependency.Metadata metadata, String depModId, JsonWriter jw) throws IOException {
+		if (metadata.getId() != null && !metadata.getId().equals(depModId)) {
+			jw.name("id").value(metadata.getId());
+		}
+
+		if (metadata.getName() != null) {
+			jw.name("name").value(metadata.getName());
+		}
+
+		if (metadata.getDescription() != null) {
+			jw.name("description").value(metadata.getDescription());
+		}
+
+		if (metadata.getContact() != null && !metadata.getContact().asMap().isEmpty()) {
+			jw.name("contact");
+			writeStringStringMap(metadata.getContact().asMap(), jw);
+		}
 	}
 
 	private static void writePerson(Person person, JsonWriter jw) throws IOException {

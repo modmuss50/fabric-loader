@@ -48,6 +48,7 @@ import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.discovery.Explanation.ErrorKind;
 import net.fabricmc.loader.impl.discovery.ModResolver.ResolutionContext;
+import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -593,8 +594,9 @@ final class ModSolver {
 		for (ModCandidateImpl mod : context.uniqueSelectedMods) {
 			// add constraints for dependencies (skips deps that are already preselected outside depDisableSim)
 
-			for (ModDependency dep : mod.getDependencies()) {
+			for (ModDependencyImpl dep : mod.getDependencies()) {
 				if (!enableOptional && dep.getKind().isSoft()) continue;
+				if (dep.isDisabledByCondition(context.expressionFunctions, mod.getId())) continue;
 				if (context.selectedMods.containsKey(dep.getModId())) continue;
 
 				List<ModCandidateImpl> available = context.modsById.get(dep.getModId());
@@ -616,6 +618,10 @@ final class ModSolver {
 				}
 
 				if (suitableMods.isEmpty() && !depDisableSim) continue;
+
+				if (dep.getCondition() != null) {
+					// TODO: implement by adding to solver constraints
+				}
 
 				switch (dep.getKind()) {
 				case DEPENDS:
@@ -692,8 +698,9 @@ final class ModSolver {
 		for (ModCandidateImpl mod : context.allModsSorted) {
 			// add constraints for dependencies
 
-			for (ModDependency dep : mod.getDependencies()) {
+			for (ModDependencyImpl dep : mod.getDependencies()) {
 				if (!enableOptional && dep.getKind().isSoft()) continue;
+				if (dep.isDisabledByCondition(context.expressionFunctions, mod.getId())) continue;
 
 				ModCandidateImpl selectedMod = context.selectedMods.get(dep.getModId());
 
@@ -730,6 +737,10 @@ final class ModSolver {
 							if (dep.matches(m.getVersion())) suitableMods.add(m);
 						}
 					}
+				}
+
+				if (dep.getCondition() != null) {
+					// TODO: implement by adding to solver constraints
 				}
 
 				switch (dep.getKind()) {

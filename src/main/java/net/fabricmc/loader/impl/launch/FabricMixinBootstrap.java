@@ -52,7 +52,7 @@ public final class FabricMixinBootstrap {
 
 	private static boolean initialized = false;
 
-	public static void init(EnvType side, FabricLoaderImpl loader) {
+	public static void init(FabricLoaderImpl loader) {
 		if (initialized) {
 			throw new RuntimeException("FabricMixinBootstrap has already been initialized!");
 		}
@@ -88,7 +88,7 @@ public final class FabricMixinBootstrap {
 		Map<String, ModContainerImpl> configToModMap = new HashMap<>();
 
 		for (ModContainerImpl mod : loader.getModsInternal()) {
-			for (String config : mod.getMetadata().getMixinConfigs(side)) {
+			for (String config : mod.getMetadata().getMixinConfigs(loader.getEnvironmentType(), loader.getExpressionFunctions())) {
 				ModContainerImpl prev = configToModMap.putIfAbsent(config, mod);
 				if (prev != null) throw new RuntimeException(String.format("Non-unique Mixin config name %s used by the mods %s and %s", config, prev.getId(), mod.getId()));
 
@@ -121,7 +121,7 @@ public final class FabricMixinBootstrap {
 
 		try {
 			IMixinConfig.class.getMethod("decorate", String.class, Object.class);
-			MixinConfigDecorator.apply(configToModMap, side);
+			MixinConfigDecorator.apply(configToModMap, loader.getEnvironmentType());
 		} catch (NoSuchMethodException e) {
 			Log.info(LogCategory.MIXIN, "Detected old Mixin version without config decoration support");
 		}

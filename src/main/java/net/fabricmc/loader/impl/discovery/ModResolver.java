@@ -43,6 +43,9 @@ import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.impl.discovery.ModSolver.InactiveReason;
 import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
+import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
+import net.fabricmc.loader.impl.util.ExpressionFunctions;
 import net.fabricmc.loader.impl.util.PhaseSorting;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -281,11 +284,9 @@ public class ModResolver {
 		// this is a workaround necessary due to many mods declaring deps that are unsatisfiable in some envs and loader before 0.12x not verifying them properly
 
 		for (ModCandidateImpl mod : mods) {
-			if (mod.getMetadata().getSchemaVersion() >= 2) continue;
-
-			for (ModDependency dep : mod.getDependencies()) {
+			for (ModDependencyImpl dep : mod.getDependencies()) {
+				if (!dep.isInferEnvironment()) continue;
 				if (!dep.getKind().isPositive() || dep.getKind() == Kind.SUGGESTS) continue; // no positive dep or already suggests
-				if (!(dep instanceof ModDependencyImpl)) continue; // can't modify dep kind
 				if (context.modsById.containsKey(dep.getModId())) continue; // non-disabled match available
 
 				Collection<ModCandidateImpl> disabledMatches = context.envDisabledMods.get(dep.getModId());
@@ -293,7 +294,7 @@ public class ModResolver {
 
 				for (ModCandidateImpl m : disabledMatches) {
 					if (depMatches(dep, m)) { // disabled version match -> remove dep
-						((ModDependencyImpl) dep).setKind(Kind.SUGGESTS);
+						dep.setKind(Kind.SUGGESTS);
 						break;
 					}
 				}
@@ -427,6 +428,7 @@ public class ModResolver {
 	public static final class ResolutionContext {
 		final Collection<ModCandidateImpl> initialMods;
 		public final EnvType envType;
+		public final Map<String, DynamicFunction> expressionFunctions;
 		final Map<String, Set<ModCandidateImpl>> envDisabledMods;
 		final PhaseSelectHandler phaseSelectHandler;
 
@@ -438,16 +440,28 @@ public class ModResolver {
 		final List<ModCandidateImpl> addedMods = new ArrayList<>();
 		final List<ModCandidateImpl> currentSelectedMods = new ArrayList<>();
 
-		public ResolutionContext(Collection<ModCandidateImpl> candidates, EnvType envType, Map<String, Set<ModCandidateImpl>> envDisabledMods,
+		public ResolutionContext(Collection<ModCandidateImpl> candidates,
+				EnvType envType, Map<String, DynamicFunction> expressionFunctions,
+				Map<String, Set<ModCandidateImpl>> envDisabledMods,
 				PhaseSelectHandler phaseSelectHandler) {
 			this.initialMods = candidates;
 			this.envType = envType;
+			this.expressionFunctions = expressionFunctions;
 			this.envDisabledMods = envDisabledMods;
 			this.phaseSelectHandler = phaseSelectHandler;
 
 			this.allModsSorted = new ArrayList<>(candidates.size());
 			this.selectedMods = new HashMap<>(candidates.size());
 			this.uniqueSelectedMods = new ArrayList<>(candidates.size());
+
+			expressionFunctions.put("mod", new DynamicFunction() {
+				@Override
+				public Object evaluate(Object... args) throws ExpressionEvaluateException {
+					ExpressionFunctions.checkString1(args);
+
+					return selectedMods.containsKey(args[0]) ? true : null;
+				}
+			});
 		}
 
 		public Collection<ModCandidateImpl> getMods(String id) {

@@ -188,7 +188,7 @@ final class V0ModMetadataParser {
 		try {
 			builder.setVersion(reader.nextString());
 		} catch (VersionParsingException e) {
-			throw new ParseMetadataException("Failed to parse version", e);
+			throw new ParseMetadataException("Failed to parse version", e, reader);
 		}
 	}
 
@@ -290,7 +290,7 @@ final class V0ModMetadataParser {
 				reader.nextNull();
 				break;
 			case STRING:
-				builder.addMixinConfig(reader.nextString(), env);
+				builder.addMixinConfig(reader.nextString(), env, null);
 				break;
 			case BEGIN_ARRAY:
 				reader.beginArray();
@@ -300,7 +300,7 @@ final class V0ModMetadataParser {
 						throw new ParseMetadataException(String.format("Expected entries in mixin %s to be an array of strings", envName), reader);
 					}
 
-					builder.addMixinConfig(reader.nextString(), env);
+					builder.addMixinConfig(reader.nextString(), env, null);
 				}
 
 				reader.endArray();
@@ -322,6 +322,7 @@ final class V0ModMetadataParser {
 
 		while (reader.hasNext()) {
 			ModDependencyBuilder depBuilder = ModDependencyBuilder.create(kind, reader.nextName());
+			depBuilder.setInferEnvironment(true);
 			readDependencyValue(reader, depBuilder);
 
 			builder.addDependency(depBuilder.build());

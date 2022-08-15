@@ -107,7 +107,7 @@ public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 			throw new IllegalArgumentException("invalid ModMetadata class: "+metadata.getClass());
 		}
 
-		loaderMeta.applyEnvironment(context.envType);
+		loaderMeta.applyEnvironment(context.envType, context.expressionFunctions);
 
 		Collection<ModCandidateImpl> nestedModsCopy;
 

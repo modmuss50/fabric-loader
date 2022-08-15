@@ -45,12 +45,13 @@ import net.fabricmc.loader.api.metadata.ProvidedMod;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.discovery.LoadPhases;
+import net.fabricmc.loader.impl.metadata.ModMetadataImpl.ConditionalConfigEntry;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.EntrypointMetadataImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.IconEntry;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MapIconEntry;
-import net.fabricmc.loader.impl.metadata.ModMetadataImpl.MixinEntry;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.ProvidedModImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataImpl.SingleIconEntry;
+import net.fabricmc.loader.impl.util.Expression;
 
 public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	static final String DEFAULT_ENTRYPOINT_ADAPTER = "default";
@@ -70,8 +71,8 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	final Map<String, List<EntrypointMetadata>> entrypoints = new HashMap<>();
 	final List<String> oldInitializers = new ArrayList<>();
 	final List<NestedJarEntry> nestedMods = new ArrayList<>();
-	final List<MixinEntry> mixins = new ArrayList<>();
-	final List<String> classTweakers = new ArrayList<>();
+	final List<ConditionalConfigEntry> mixins = new ArrayList<>();
+	final List<ConditionalConfigEntry> classTweakers = new ArrayList<>();
 
 	// Optional (dependency resolution)
 	List<ModDependencyImpl> dependencies = new ArrayList<>();
@@ -189,12 +190,17 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter) {
+	public ModMetadataBuilder addEntrypoint(String key, String value) {
+		return addEntrypoint(key, value, null, null);
+	}
+
+	@Override
+	public ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter, /* @Nullable */ Expression condition) {
 		Objects.requireNonNull(key, "null key");
 		Objects.requireNonNull(value, "null value");
 
 		if (adapter == null) adapter = DEFAULT_ENTRYPOINT_ADAPTER;
-		entrypoints.computeIfAbsent(key, ignore -> new ArrayList<>()).add(new EntrypointMetadataImpl(adapter, value));
+		entrypoints.computeIfAbsent(key, ignore -> new ArrayList<>()).add(new EntrypointMetadataImpl(adapter, value, condition));
 
 		return this;
 	}
@@ -217,19 +223,29 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment) {
+	public ModMetadataBuilder addMixinConfig(String location) {
+		return addMixinConfig(location, null, null);
+	}
+
+	@Override
+	public ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition) {
 		Objects.requireNonNull(location, "null location");
 
-		mixins.add(new MixinEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL));
+		mixins.add(new ConditionalConfigEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL, condition));
 
 		return this;
 	}
 
 	@Override
 	public ModMetadataBuilder addClassTweaker(String location) {
+		return addClassTweaker(location, null, null);
+	}
+
+	@Override
+	public ModMetadataBuilder addClassTweaker(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition) {
 		Objects.requireNonNull(location, "null location");
 
-		classTweakers.add(location);
+		classTweakers.add(new ConditionalConfigEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL, condition));
 
 		return this;
 	}
@@ -482,6 +498,8 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		private String modId;
 		private final Collection<VersionPredicate> versionOptions = new ArrayList<>();
 		private ModEnvironment environment = ModEnvironment.UNIVERSAL;
+		private boolean inferEnvironment;
+		private Expression condition;
 		private String reason;
 		private ModDependency.Metadata metadata;
 		private ModDependency.Metadata rootMetadata;
@@ -533,6 +551,20 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		}
 
 		@Override
+		public ModDependencyBuilder setInferEnvironment(boolean value) {
+			this.inferEnvironment = value;
+
+			return this;
+		}
+
+		@Override
+		public ModDependencyBuilder setCondition(/* @Nullable */ Expression condition) {
+			this.condition = condition;
+
+			return this;
+		}
+
+		@Override
 		public ModDependencyBuilder setReason(/* @Nullable */ String reason) {
 			this.reason = reason;
 
@@ -564,7 +596,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 			if (versionOptions.isEmpty()) versionOptions.add(VersionPredicate.any());
 
 			return new ModDependencyImpl(kind, modId, versionOptions,
-					environment, reason,
+					environment, inferEnvironment, condition, reason,
 					metadata, rootMetadata);
 		}
 	}

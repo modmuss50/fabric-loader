@@ -23,6 +23,7 @@ import java.util.Map;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
 
 /**
  * Internal variant of the ModMetadata interface.
@@ -39,8 +40,8 @@ public interface LoaderModMetadata extends net.fabricmc.loader.metadata.LoaderMo
 
 	Map<String, String> getLanguageAdapterDefinitions();
 	Collection<NestedJarEntry> getJars();
-	Collection<String> getMixinConfigs(EnvType type);
-	Collection<String> getClassTweakers();
+	Collection<String> getMixinConfigs(EnvType env, Map<String, DynamicFunction> expressionFunctions);
+	Collection<String> getClassTweakers(EnvType env, Map<String, DynamicFunction> expressionFunctions);
 	@Override
 	boolean loadsInEnvironment(EnvType type);
 	@Override
@@ -58,27 +59,19 @@ public interface LoaderModMetadata extends net.fabricmc.loader.metadata.LoaderMo
 	/**
 	 * Adjust the metadata for the environment, stripping unsuitable deps.
 	 */
-	default void applyEnvironment(EnvType envType) {
+	default void applyEnvironment(EnvType envType, Map<String, DynamicFunction> expressionFunctions) {
 		Collection<ModDependencyImpl> deps = getDependencies();
-		boolean affected = false;
+		List<ModDependencyImpl> newDeps = new ArrayList<>(deps.size());
 
 		for (ModDependencyImpl dep : deps) {
-			if (!dep.appliesInEnvironment(envType)) {
-				affected = true;
-				break;
-			}
+			if (!dep.appliesInEnvironment(envType)) continue;
+			if (dep.isDisabledByCondition(expressionFunctions, getId())) continue;
+
+			newDeps.add(dep);
 		}
 
-		if (!affected) return;
-
-		List<ModDependencyImpl> newDeps = new ArrayList<>(deps.size() - 1);
-
-		for (ModDependencyImpl dep : deps) {
-			if (dep.appliesInEnvironment(envType)) {
-				newDeps.add(dep);
-			}
+		if (newDeps.size() != deps.size()) {
+			setDependencies(newDeps);
 		}
-
-		setDependencies(newDeps);
 	}
 }

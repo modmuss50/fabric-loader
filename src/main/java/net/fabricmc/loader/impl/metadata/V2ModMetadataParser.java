@@ -27,11 +27,15 @@ import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyBuilder
 import net.fabricmc.loader.api.extension.ModMetadataBuilder.ModDependencyMetadataBuilder;
 import net.fabricmc.loader.api.metadata.ContactInformation;
 import net.fabricmc.loader.api.metadata.ModDependency;
+import net.fabricmc.loader.api.metadata.ModDependency.Kind;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 import net.fabricmc.loader.impl.lib.gson.JsonToken;
+import net.fabricmc.loader.impl.util.Expression;
+import net.fabricmc.loader.impl.util.Expression.ExpressionParseException;
+import net.fabricmc.loader.impl.util.StringUtil;
 
 final class V2ModMetadataParser {
 	/**
@@ -43,9 +47,11 @@ final class V2ModMetadataParser {
 	 * <li>entrypoints object can use string values without an array
 	 * <li>added loadCondition
 	 * <li>added loadPhase
-	 * <li>accessWidener -> classTweakers, can take string or array of strings
+	 * <li>mixins can take a string directly, no array required
+	 * <li>accessWidener -> classTweakers
+	 * <li>mixins and classTweaks can accept an object with additional environment and condition entries, besides the plain string as before
 	 * <li>license -> licenses
-	 * <li>dependencies accept object value form with additional environment, reason, metadata (id, name, description, contact), root metadata (same as dep metadata)
+	 * <li>dependencies accept object value form with additional environment, condition, reason, metadata (id, name, description, contact), root metadata (same as dep metadata)
 	 * </ul>
 	 */
 	static void parse(JsonReader reader, List<ParseWarning> warnings, ModMetadataBuilderImpl builder) throws IOException, ParseMetadataException {
@@ -82,10 +88,10 @@ final class V2ModMetadataParser {
 				V1ModMetadataParser.readNestedJarEntries(reader, null, builder);
 				break;
 			case "mixins":
-				readMixinConfigs(reader, builder);
+				readConditionalConfigs(reader, true, builder);
 				break;
 			case "classTweakers":
-				readClassTweakers(reader, builder);
+				readConditionalConfigs(reader, false, builder);
 				break;
 			case "depends":
 				readDependency(reader, ModDependency.Kind.DEPENDS, builder);
@@ -212,13 +218,13 @@ final class V2ModMetadataParser {
 
 			switch (reader.peek()) {
 			case STRING:
-				V1ModMetadataParser.readEntrypoint(reader, key, null, builder);
+				readEntrypoint(reader, key, builder);
 				break;
 			case BEGIN_ARRAY:
 				reader.beginArray();
 
 				while (reader.hasNext()) {
-					V1ModMetadataParser.readEntrypoint(reader, key, null, builder);
+					readEntrypoint(reader, key, builder);
 				}
 
 				reader.endArray();
@@ -231,73 +237,124 @@ final class V2ModMetadataParser {
 		reader.endObject();
 	}
 
-	private static void readMixinConfigs(JsonReader reader, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
-		if (reader.peek() != JsonToken.BEGIN_ARRAY) {
-			throw new ParseMetadataException("Mixin configs must be in an array", reader);
-		}
+	private static void readEntrypoint(JsonReader reader, String key, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+		String adapter = null;
+		String value = null;
+		Expression condition = null;
 
-		reader.beginArray();
-
-		while (reader.hasNext()) {
-			switch (reader.peek()) {
-			case STRING:
-				// All mixin configs specified via string are assumed to be universal
-				builder.addMixinConfig(reader.nextString(), null);
-				break;
-			case BEGIN_OBJECT:
-				reader.beginObject();
-
-				String config = null;
-				ModEnvironment environment = null;
-
-				while (reader.hasNext()) {
-					final String key = reader.nextName();
-
-					switch (key) {
-					// Environment is optional
-					case "environment":
-						environment = V1ModMetadataParser.readEnvironment(reader);
-						break;
-					case "config":
-						config = ParserUtil.readString(reader, key);
-						break;
-					default:
-						throw new ParseMetadataException("Invalid key "+key+" in mixin config entry", reader);
-					}
-				}
-
-				reader.endObject();
-
-				if (config == null) {
-					throw new ParseMetadataException.MissingField("Missing mandatory key 'config' in mixin entry!");
-				}
-
-				builder.addMixinConfig(config, environment);
-				break;
-			default:
-				throw new ParseMetadataException("Mixin list must be a string or object!", reader);
-			}
-		}
-
-		reader.endArray();
-	}
-
-	private static void readClassTweakers(JsonReader reader, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+		// Entrypoints may be specified directly as a string or as an object to allow specification of the language adapter to use.
 		switch (reader.peek()) {
 		case STRING:
-			builder.addClassTweaker(reader.nextString());
+			value = reader.nextString();
+			break;
+		case BEGIN_OBJECT:
+			reader.beginObject();
+
+			while (reader.hasNext()) {
+				final String entryKey = reader.nextName();
+				switch (entryKey) {
+				case "adapter":
+					adapter = reader.nextString();
+					break;
+				case "value":
+					value = reader.nextString();
+					break;
+				case "condition":
+					condition = readCondition(reader);
+					break;
+				default:
+					throw new ParseMetadataException("Invalid key "+key+" in entrypoint entry", reader);
+				}
+			}
+
+			reader.endObject();
+			break;
+		default:
+			throw new ParseMetadataException("Entrypoint must be a string or object with \"value\" field", reader);
+		}
+
+		if (value == null) {
+			throw new ParseMetadataException.MissingField("Entrypoint value must be present");
+		}
+
+		builder.addEntrypoint(key, value, adapter, condition);
+	}
+
+	private static void readConditionalConfigs(JsonReader reader, boolean isMixin, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+		String configName = isMixin ? "mixin" : "class tweaker";
+
+		switch (reader.peek()) {
+		case STRING:
+			readConditionalConfig(reader, isMixin, configName, builder);
 			break;
 		case BEGIN_ARRAY:
 			reader.beginArray();
 
 			while (reader.hasNext()) {
-				builder.addClassTweaker(ParserUtil.readString(reader, "class tweaker"));
+				readConditionalConfig(reader, isMixin, configName, builder);
 			}
 
 			reader.endArray();
 			break;
 		default:
-			throw new ParseMetadataException("classTweakers must be a string or array of strings!", reader);
+			throw new ParseMetadataException(StringUtil.capitalize(configName)+" must be a string or array of strings!", reader);
+		}
+	}
+
+	private static void readConditionalConfig(JsonReader reader, boolean isMixin, String configName, ModMetadataBuilder builder) throws IOException, ParseMetadataException {
+		switch (reader.peek()) {
+		case STRING: {
+			// All configs specified via string are assumed to be universal
+			String config = reader.nextString();
+
+			if (isMixin) {
+				builder.addMixinConfig(config);
+			} else {
+				builder.addClassTweaker(config);
+			}
+
+			break;
+		}
+		case BEGIN_OBJECT:
+			reader.beginObject();
+
+			String config = null;
+			ModEnvironment environment = null;
+			Expression condition = null;
+
+			while (reader.hasNext()) {
+				final String key = reader.nextName();
+
+				switch (key) {
+				case "config":
+					config = ParserUtil.readString(reader, key);
+					break;
+				case "environment": // optional
+					environment = V1ModMetadataParser.readEnvironment(reader);
+					break;
+				case "condition": // optional
+					condition = readCondition(reader);
+					break;
+				default:
+					throw new ParseMetadataException("Invalid key "+key+" in "+configName+" config entry", reader);
+				}
+			}
+
+			reader.endObject();
+
+			if (config == null) {
+				throw new ParseMetadataException.MissingField("Missing mandatory key 'config' in "+configName+" entry!");
+			}
+
+			if (isMixin) {
+				builder.addMixinConfig(config, environment, condition);
+			} else {
+				builder.addClassTweaker(config, environment, condition);
+			}
+
+			break;
+		default:
+			throw new ParseMetadataException(StringUtil.capitalize(configName)+" list must be a string or object!", reader);
 		}
 	}
 
@@ -322,11 +379,42 @@ final class V2ModMetadataParser {
 					String key = reader.nextName();
 
 					switch (key) {
-					case "version": // if this is absent depBuilder will default to any
+					case "versions": // if this is absent depBuilder will default to any
 						V0ModMetadataParser.readDependencyValue(reader, depBuilder);
 						break;
-					case "environment":
-						depBuilder.setEnvironment(V1ModMetadataParser.readEnvironment(reader));
+					case "environment": {
+						if (reader.peek() != JsonToken.STRING) {
+							throw new ParseMetadataException("Dependency environment must be a string", reader);
+						}
+
+						final String environment = reader.nextString().toLowerCase(Locale.ROOT);
+
+						switch (environment) {
+						case "":
+						case "*":
+							depBuilder.setEnvironment(ModEnvironment.UNIVERSAL);
+							break;
+						case "client":
+							depBuilder.setEnvironment(ModEnvironment.CLIENT);
+							break;
+						case "server":
+							depBuilder.setEnvironment(ModEnvironment.SERVER);
+							break;
+						case "auto":
+							if (!kind.isPositive() || kind == Kind.SUGGESTS) {
+								throw new ParseMetadataException("Dependency environment " + environment + " is only applicable to depends and recommends!", reader);
+							}
+
+							depBuilder.setInferEnvironment(true);
+							break;
+						default:
+							throw new ParseMetadataException("Invalid dependency environment type: " + environment + "!", reader);
+						}
+
+						break;
+					}
+					case "condition":
+						depBuilder.setCondition(readCondition(reader));
 						break;
 					case "reason":
 						depBuilder.setReason(ParserUtil.readString(reader, key));
@@ -453,6 +541,26 @@ final class V2ModMetadataParser {
 			return new ContactInfoBackedPerson(personName, contactInformation);
 		default:
 			throw new ParseMetadataException("Person type must be an object or string!", reader);
+		}
+	}
+
+	private static Expression readCondition(JsonReader reader) throws IOException, ParseMetadataException {
+		if (reader.peek() != JsonToken.STRING) {
+			throw new ParseMetadataException("Condition must be a string", reader);
+		}
+
+		String expr = reader.nextString();
+
+		try {
+			Expression ret = Expression.parse(expr);
+
+			if (!ret.maybeBooleanExpression()) {
+				throw new ParseMetadataException("The condition "+expr+" doesn't yield a boolean value", reader);
+			}
+
+			return ret;
+		} catch (ExpressionParseException e) {
+			throw new ParseMetadataException("The condition "+expr+" can't be parsed", e, reader);
 		}
 	}
 }

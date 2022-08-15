@@ -30,11 +30,11 @@ public class ParseMetadataException extends Exception {
 	}
 
 	public ParseMetadataException(String message, JsonReader reader) {
-		this(message + " Error was located at: " + reader.locationString());
+		this(message + reader.locationString());
 	}
 
-	public ParseMetadataException(String message, Throwable throwable) {
-		super(message, throwable);
+	public ParseMetadataException(String message, Throwable throwable, JsonReader reader) {
+		super(message + reader.locationString(), throwable);
 	}
 
 	public ParseMetadataException(Throwable t, JsonReader reader) {

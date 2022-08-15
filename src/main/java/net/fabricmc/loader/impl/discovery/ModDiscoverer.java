@@ -60,20 +60,25 @@ import net.fabricmc.loader.impl.metadata.NestedJarEntry;
 import net.fabricmc.loader.impl.metadata.ParseMetadataException;
 import net.fabricmc.loader.impl.metadata.VersionOverrides;
 import net.fabricmc.loader.impl.util.ExceptionUtil;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
 import net.fabricmc.loader.impl.util.LoaderUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 
 public final class ModDiscoverer {
+	private final EnvType envType;
+	private final Map<String, DynamicFunction> expressionFunctions;
 	private final VersionOverrides versionOverrides;
 	private final DependencyOverrides depOverrides;
 	private final List<ModCandidateFinder> candidateFinders = new ArrayList<>();
-	private final EnvType envType = FabricLoaderImpl.INSTANCE.getEnvironmentType();
 	private final Map<Long, ModScanTask> jijDedupMap = new ConcurrentHashMap<>(); // avoids reading the same jar twice
 	private final List<NestedModInitData> nestedModInitDatas = Collections.synchronizedList(new ArrayList<>()); // breaks potential cycles from deduplication
 
-	public ModDiscoverer(VersionOverrides versionOverrides, DependencyOverrides depOverrides) {
+	public ModDiscoverer(EnvType env, Map<String, DynamicFunction> expressionFunctions,
+			VersionOverrides versionOverrides, DependencyOverrides depOverrides) {
+		this.envType = env;
+		this.expressionFunctions = expressionFunctions;
 		this.versionOverrides = versionOverrides;
 		this.depOverrides = depOverrides;
 	}
@@ -503,7 +508,7 @@ public final class ModDiscoverer {
 
 		private LoaderModMetadata parseMetadata(InputStream is, String localPath) throws ParseMetadataException {
 			LoaderModMetadata ret = ModMetadataParser.parseMetadata(is, localPath, parentPaths, versionOverrides, depOverrides, FabricLoaderImpl.INSTANCE.isDevelopmentEnvironment());
-			ret.applyEnvironment(envType);
+			ret.applyEnvironment(envType, expressionFunctions);
 
 			return ret;
 		}

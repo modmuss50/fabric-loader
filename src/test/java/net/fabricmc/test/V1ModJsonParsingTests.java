@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.SemanticVersion;
 import net.fabricmc.loader.api.metadata.CustomValue;
 import net.fabricmc.loader.impl.metadata.DependencyOverrides;
@@ -150,7 +151,7 @@ final class V1ModJsonParsingTests {
 	public void testLongFile() throws IOException, ParseMetadataException {
 		final LoaderModMetadata modMetadata = parseMetadata(specPath.resolve("long.json"));
 
-		if (!modMetadata.getClassTweakers().equals(Collections.singletonList("examplemod.accessWidener"))) {
+		if (!modMetadata.getClassTweakers(EnvType.CLIENT, Collections.emptyMap()).equals(Collections.singletonList("examplemod.accessWidener"))) {
 			throw new RuntimeException("Incorrect access widener entry");
 		}
 

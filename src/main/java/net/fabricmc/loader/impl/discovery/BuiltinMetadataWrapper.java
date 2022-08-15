@@ -36,6 +36,7 @@ import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.metadata.NestedJarEntry;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
 
 class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMetadata {
 	private final ModMetadata parent;
@@ -166,12 +167,12 @@ class BuiltinMetadataWrapper extends AbstractModMetadata implements LoaderModMet
 	}
 
 	@Override
-	public Collection<String> getMixinConfigs(EnvType type) {
+	public Collection<String> getMixinConfigs(EnvType env, Map<String, DynamicFunction> expressionFunctions) {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public Collection<String> getClassTweakers() {
+	public Collection<String> getClassTweakers(EnvType env, Map<String, DynamicFunction> expressionFunctions) {
 		return Collections.emptyList();
 	}
 

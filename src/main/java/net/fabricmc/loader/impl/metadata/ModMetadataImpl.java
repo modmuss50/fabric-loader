@@ -32,6 +32,11 @@ import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.ModLoadCondition;
 import net.fabricmc.loader.api.metadata.Person;
 import net.fabricmc.loader.api.metadata.ProvidedMod;
+import net.fabricmc.loader.impl.FormattedException;
+import net.fabricmc.loader.impl.util.Expression;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
+import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
+import net.fabricmc.loader.impl.util.StringUtil;
 
 final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMetadata {
 	static final IconEntry NO_ICON = size -> Optional.empty();
@@ -51,8 +56,8 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private final String loadPhase;
 	private final Map<String, List<EntrypointMetadata>> entrypoints;
 	private final Collection<NestedJarEntry> jars;
-	private final Collection<MixinEntry> mixins;
-	private final Collection<String> classTweakers;
+	private final Collection<ConditionalConfigEntry> mixins;
+	private final Collection<ConditionalConfigEntry> classTweakers;
 
 	// Optional (dependency resolution)
 	private Collection<ModDependencyImpl> dependencies;
@@ -80,7 +85,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 			String id, Version version, Collection<ProvidedModImpl> providedMods,
 			ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
 			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
-			Collection<MixinEntry> mixins, Collection<String> classTweakers,
+			Collection<ConditionalConfigEntry> mixins, Collection<ConditionalConfigEntry> classTweakers,
 			Collection<ModDependencyImpl> dependencies,
 			/* @Nullable */ String name, /* @Nullable */String description,
 			Collection<Person> authors, Collection<Person> contributors, /* @Nullable */ContactInformation contact, Collection<String> license, IconEntry icon,
@@ -262,22 +267,34 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	}
 
 	@Override
-	public Collection<String> getMixinConfigs(EnvType type) {
-		final List<String> mixinConfigs = new ArrayList<>();
-
-		// This is only ever called once, so no need to store the result of this.
-		for (MixinEntry mixin : this.mixins) {
-			if (mixin.environment.matches(type)) {
-				mixinConfigs.add(mixin.config);
-			}
-		}
-
-		return mixinConfigs;
+	public Collection<String> getMixinConfigs(EnvType env, Map<String, DynamicFunction> expressionFunctions) {
+		return processConditionalConfigs("mixin", mixins, env, expressionFunctions);
 	}
 
 	@Override
-	public Collection<String> getClassTweakers() {
-		return classTweakers;
+	public Collection<String> getClassTweakers(EnvType env, Map<String, DynamicFunction> expressionFunctions) {
+		return processConditionalConfigs("class tweaker", classTweakers, env, expressionFunctions);
+	}
+
+	private Collection<String> processConditionalConfigs(String name, Collection<ConditionalConfigEntry> entries,
+			EnvType type, Map<String, DynamicFunction> expressionFunctions) {
+		final List<String> ret = new ArrayList<>();
+
+		// This is only ever called once, so no need to store the result of this.
+		for (ConditionalConfigEntry entry : entries) {
+			try {
+				if (entry.environment.matches(type)
+						&& (entry.condition == null || entry.condition.evaluateBoolean(expressionFunctions))) {
+					ret.add(entry.config);
+				}
+			} catch (ExpressionEvaluateException e) {
+				throw new FormattedException(StringUtil.capitalize(name)+" config condition evaluation failed",
+						"The mod "+getId()+" supplied a "+name+" config condition that couldn't be evaluated",
+						e);
+			}
+		}
+
+		return ret;
 	}
 
 	@Override
@@ -355,10 +372,12 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	static final class EntrypointMetadataImpl implements EntrypointMetadata {
 		private final String adapter;
 		private final String value;
+		private final Expression condition;
 
-		EntrypointMetadataImpl(String adapter, String value) {
+		EntrypointMetadataImpl(String adapter, String value, Expression condition) {
 			this.adapter = adapter;
 			this.value = value;
+			this.condition = condition;
 		}
 
 		@Override
@@ -369,6 +388,10 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		@Override
 		public String getValue() {
 			return this.value;
+		}
+
+		public Expression getCondition() {
+			return condition;
 		}
 	}
 
@@ -385,13 +408,15 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 		}
 	}
 
-	static final class MixinEntry {
+	static final class ConditionalConfigEntry {
 		final String config;
 		final ModEnvironment environment;
+		final Expression condition;
 
-		MixinEntry(String config, ModEnvironment environment) {
+		ConditionalConfigEntry(String config, ModEnvironment environment, Expression condition) {
 			this.config = config;
 			this.environment = environment;
+			this.condition = condition;
 		}
 	}
 

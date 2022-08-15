@@ -65,6 +65,8 @@ import net.fabricmc.loader.impl.metadata.EntrypointMetadata;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 import net.fabricmc.loader.impl.metadata.VersionOverrides;
 import net.fabricmc.loader.impl.util.DefaultLanguageAdapter;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
+import net.fabricmc.loader.impl.util.ExpressionFunctions;
 import net.fabricmc.loader.impl.util.LoaderUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
@@ -105,6 +107,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 	private Path configDir;
 
 	private ModDiscoverer discoverer;
+	private final Map<String, DynamicFunction> expressionFunctions = new HashMap<>();
 
 	private FabricLoaderImpl() { }
 
@@ -122,6 +125,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		frozen = true;
 		discoverer = null;
+		ExpressionFunctions.registerLate(expressionFunctions);
 		finishModLoading();
 	}
 
@@ -198,6 +202,10 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		return discoverer;
 	}
 
+	public Map<String, DynamicFunction> getExpressionFunctions() {
+		return expressionFunctions;
+	}
+
 	public void load() {
 		if (provider == null) throw new IllegalStateException("game provider not set");
 		if (frozen) throw new IllegalStateException("Frozen - cannot load additional mods!");
@@ -222,7 +230,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		// discover mods
 
-		discoverer = new ModDiscoverer(versionOverrides, depOverrides);
+		discoverer = new ModDiscoverer(getEnvironmentType(), expressionFunctions, versionOverrides, depOverrides);
 		discoverer.addCandidateFinder(new ClasspathModCandidateFinder());
 		discoverer.addCandidateFinder(new DirectoryModCandidateFinder(gameDir.resolve("mods"), remapRegularMods));
 		discoverer.addCandidateFinder(new ArgumentModCandidateFinder(remapRegularMods));
@@ -242,7 +250,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		// resolve mods
 
-		ResolutionContext context = new ResolutionContext(candidates, getEnvironmentType(), envDisabledMods, this::addMods);
+		ResolutionContext context = new ResolutionContext(candidates, getEnvironmentType(), expressionFunctions, envDisabledMods, this::addMods);
 		ModResolver.resolve(context);
 
 		// sort mods alphabetical
@@ -266,7 +274,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 			if (System.getProperty(SystemProperties.REMAP_CLASSPATH_FILE) == null) {
 				Log.warn(LogCategory.MOD_REMAP, "Runtime mod remapping disabled due to no fabric.remapClasspathFile being specified. You may need to update loom.");
 			} else {
-				RuntimeModRemapper.remap(mods, context.getMods(), cacheDir.resolve(TMP_DIR_NAME), outputdir);
+				RuntimeModRemapper.remap(mods, context.getMods(), cacheDir.resolve(TMP_DIR_NAME), outputdir, getEnvironmentType(), expressionFunctions);
 			}
 		}
 
@@ -536,7 +544,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		for (ModContainer modContainer : mods) {
 			LoaderModMetadata modMetadata = (LoaderModMetadata) modContainer.getMetadata();
-			Collection<String> classTweakers = modMetadata.getClassTweakers();
+			Collection<String> classTweakers = modMetadata.getClassTweakers(getEnvironmentType(), expressionFunctions);
 			if (classTweakers.isEmpty()) continue;
 
 			for (String loc : classTweakers) {

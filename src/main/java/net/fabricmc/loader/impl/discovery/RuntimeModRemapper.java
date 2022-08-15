@@ -39,9 +39,11 @@ import java.util.stream.Collectors;
 import net.fabricmc.accesswidener.AccessWidenerReader;
 import net.fabricmc.accesswidener.AccessWidenerRemapper;
 import net.fabricmc.accesswidener.AccessWidenerWriter;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.impl.FormattedException;
 import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 import net.fabricmc.loader.impl.launch.MappingConfiguration;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
 import net.fabricmc.loader.impl.util.FileSystemUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
@@ -54,7 +56,8 @@ import net.fabricmc.tinyremapper.OutputConsumerPath.ResourceRemapper;
 import net.fabricmc.tinyremapper.TinyRemapper;
 
 public final class RuntimeModRemapper {
-	public static void remap(Collection<ModCandidateImpl> modCandidates, Collection<ModCandidateImpl> cpMods, Path tmpDir, Path outputDir) {
+	public static void remap(Collection<ModCandidateImpl> modCandidates, Collection<ModCandidateImpl> cpMods, Path tmpDir, Path outputDir,
+			EnvType env, Map<String, DynamicFunction> expressionFunctions) {
 		Set<ModCandidateImpl> modsToRemap = new HashSet<>();
 
 		for (ModCandidateImpl mod : modCandidates) {
@@ -117,7 +120,7 @@ public final class RuntimeModRemapper {
 				List<ResourceRemapper> resourceRemappers = NonClassCopyMode.FIX_META_INF.remappers;
 
 				// aw remapping
-				ResourceRemapper awRemapper = createClassTweakerRemapper(mod, modNs, runtimeNs);
+				ResourceRemapper awRemapper = createClassTweakerRemapper(mod, modNs, runtimeNs, env, expressionFunctions);
 
 				if (awRemapper != null) {
 					resourceRemappers = new ArrayList<>(resourceRemappers);
@@ -180,8 +183,9 @@ public final class RuntimeModRemapper {
 		}
 	}
 
-	private static ResourceRemapper createClassTweakerRemapper(ModCandidateImpl mod, String modNs, String runtimeNs) {
-		Collection<String> classTweakers = mod.getMetadata().getClassTweakers();
+	private static ResourceRemapper createClassTweakerRemapper(ModCandidateImpl mod, String modNs, String runtimeNs,
+			EnvType env, Map<String, DynamicFunction> expressionFunctions) {
+		Collection<String> classTweakers = mod.getMetadata().getClassTweakers(env, expressionFunctions);
 		if (classTweakers.isEmpty()) return null;
 
 		return new ResourceRemapper() {

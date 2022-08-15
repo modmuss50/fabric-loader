@@ -16,10 +16,13 @@
 
 package net.fabricmc.loader.impl.metadata;
 
+import net.fabricmc.loader.impl.util.Expression;
+
 @SuppressWarnings("deprecation")
 public interface EntrypointMetadata extends net.fabricmc.loader.metadata.EntrypointMetadata {
 	@Override
 	String getAdapter();
 	@Override
 	String getValue();
+	Expression getCondition();
 }

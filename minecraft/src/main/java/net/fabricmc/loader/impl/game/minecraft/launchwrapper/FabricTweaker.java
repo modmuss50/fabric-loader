@@ -146,7 +146,7 @@ public abstract class FabricTweaker extends FabricLauncherBase implements ITweak
 
 		// Setup Mixin environment
 		MixinBootstrap.init();
-		FabricMixinBootstrap.init(getEnvironmentType(), FabricLoaderImpl.INSTANCE);
+		FabricMixinBootstrap.init(FabricLoaderImpl.INSTANCE);
 		MixinEnvironment.getDefaultEnvironment().setSide(getEnvironmentType() == EnvType.CLIENT ? MixinEnvironment.Side.CLIENT : MixinEnvironment.Side.SERVER);
 
 		provider.unlockClassPath(this);

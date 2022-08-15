@@ -19,6 +19,7 @@ package net.fabricmc.loader.impl.metadata;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
@@ -27,24 +28,33 @@ import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModEnvironment;
 import net.fabricmc.loader.api.metadata.version.VersionInterval;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
+import net.fabricmc.loader.impl.FormattedException;
+import net.fabricmc.loader.impl.util.Expression;
+import net.fabricmc.loader.impl.util.Expression.DynamicFunction;
+import net.fabricmc.loader.impl.util.Expression.ExpressionEvaluateException;
 
 public final class ModDependencyImpl implements ModDependency {
 	private Kind kind;
 	private final String modId;
 	private final Collection<VersionPredicate> ranges;
 	private final ModEnvironment environment;
+	private final boolean inferEnvironment;
+	private final Expression originalCondition;
+	private Expression condition;
 	private final String reason;
 	private final ModDependency.Metadata metadata;
 	private final ModDependency.Metadata rootMetadata;
 
 	ModDependencyImpl(Kind kind,
 			String modId, Collection<VersionPredicate> versionOptions,
-			ModEnvironment environment, String reason,
+			ModEnvironment environment, boolean inferEnvironment, Expression condition, String reason,
 			ModDependency.Metadata metadata, ModDependency.Metadata rootMetadata) {
 		this.kind = kind;
 		this.modId = modId;
 		this.ranges = versionOptions;
 		this.environment = environment;
+		this.inferEnvironment = inferEnvironment;
+		this.originalCondition = this.condition = condition;
 		this.reason = reason;
 		this.metadata = metadata;
 		this.rootMetadata = rootMetadata;
@@ -70,6 +80,37 @@ public final class ModDependencyImpl implements ModDependency {
 
 	boolean appliesInEnvironment(EnvType type) {
 		return environment.matches(type);
+	}
+
+	public boolean isInferEnvironment() {
+		return inferEnvironment;
+	}
+
+	public Expression getOriginalCondition() {
+		return originalCondition;
+	}
+
+	public Expression getCondition() {
+		return condition;
+	}
+
+	public boolean isDisabledByCondition(Map<String, DynamicFunction> expressionFunctions, String modId) {
+		if (condition == null) return false;
+
+		try {
+			condition = condition.partialEvaluate(expressionFunctions);
+
+			Object result = condition.getResult();
+			if (result == null) return false;
+
+			if (!(result instanceof Boolean)) throw new ExpressionEvaluateException("non-boolean value");
+
+			return (boolean) result;
+		} catch (ExpressionEvaluateException e) {
+			throw new FormattedException("Dependency condition evaluation failed",
+					"The mod "+modId+" supplied a dependency condition that couldn't be evaluated",
+					e);
+		}
 	}
 
 	String getReason() {

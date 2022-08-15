@@ -35,6 +35,7 @@ import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ContactInformationBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ModDependencyBuilderImpl;
 import net.fabricmc.loader.impl.metadata.ModMetadataBuilderImpl.ModDependencyMetadataBuilderImpl;
+import net.fabricmc.loader.impl.util.Expression;
 
 public interface ModMetadataBuilder extends ModMetadata {
 	static ModMetadataBuilder create() {
@@ -51,10 +52,13 @@ public interface ModMetadataBuilder extends ModMetadata {
 	ModMetadataBuilder setLoadCondition(/* @Nullable */ ModLoadCondition loadCondition);
 	ModMetadataBuilder setLoadPhase(/* @Nullable */ String loadPhase);
 
-	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter);
+	ModMetadataBuilder addEntrypoint(String key, String value);
+	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter, /* @Nullable */ Expression condition);
 	ModMetadataBuilder addNestedMod(String location);
-	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment);
+	ModMetadataBuilder addMixinConfig(String location);
+	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition);
 	ModMetadataBuilder addClassTweaker(String location);
+	ModMetadataBuilder addClassTweaker(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition);
 
 	ModMetadataBuilder addDependency(ModDependency dependenc);
 
@@ -94,6 +98,8 @@ public interface ModMetadataBuilder extends ModMetadata {
 		ModDependencyBuilder addVersion(VersionPredicate predicate);
 		ModDependencyBuilder addVersions(Collection<VersionPredicate> predicates);
 		ModDependencyBuilder setEnvironment(ModEnvironment environment);
+		ModDependencyBuilder setInferEnvironment(boolean value);
+		ModDependencyBuilder setCondition(/* @Nullable */ Expression condition);
 		ModDependencyBuilder setReason(/* @Nullable */ String reason);
 		ModDependencyBuilder setMetadata(/* @Nullable */ ModDependency.Metadata metadata);
 		ModDependencyBuilder setRootMetadata(/* @Nullable */ ModDependency.Metadata metadata);
