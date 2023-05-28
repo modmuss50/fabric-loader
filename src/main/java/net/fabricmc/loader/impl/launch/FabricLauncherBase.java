@@ -35,7 +35,6 @@ public abstract class FabricLauncherBase implements FabricLauncher {
 	private static boolean mixinReady;
 	private static Map<String, Object> properties;
 	private static FabricLauncher launcher;
-	private static MappingConfiguration mappingConfiguration = new MappingConfiguration();
 
 	protected FabricLauncherBase() {
 		setLauncher(this);
@@ -47,7 +46,7 @@ public abstract class FabricLauncherBase implements FabricLauncher {
 
 	@Override
 	public MappingConfiguration getMappingConfiguration() {
-		return mappingConfiguration;
+		return FabricLoaderImpl.INSTANCE.getGameProvider().getMappingConfiguration();
 	}
 
 	protected static void setProperties(Map<String, Object> propertiesA) {

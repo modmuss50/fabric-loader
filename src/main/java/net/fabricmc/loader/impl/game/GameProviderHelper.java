@@ -155,14 +155,12 @@ public final class GameProviderHelper {
 
 	private static boolean emittedInfo = false;
 
-	public static Map<String, Path> deobfuscate(Map<String, Path> inputFileMap, String gameId, String gameVersion, Path gameDir, FabricLauncher launcher) {
+	public static Map<String, Path> deobfuscate(Map<String, Path> inputFileMap, String gameId, String gameVersion, Path gameDir, FabricLauncher launcher, MappingConfiguration mappingConfig) {
 		Log.debug(LogCategory.GAME_REMAP, "Requesting deobfuscation of %s", inputFileMap);
 
 		if (launcher.isDevelopment()) { // in-dev is already deobfuscated
 			return inputFileMap;
 		}
-
-		MappingConfiguration mappingConfig = launcher.getMappingConfiguration();
 
 		if (!mappingConfig.matches(gameId, gameVersion)) {
 			String mappingsGameId = mappingConfig.getGameId();
@@ -203,7 +201,7 @@ public final class GameProviderHelper {
 			String name = entry.getKey();
 			Path inputFile = entry.getValue();
 			// TODO: allow versioning mappings?
-			String deobfJarFilename = String.format("%s-%s.jar", name, targetNamespace);
+			String deobfJarFilename = String.format("%s-%s-%s.jar", name, mappingConfig.getConfigurationName(), targetNamespace);
 			Path outputFile = deobfJarDir.resolve(deobfJarFilename);
 			Path tmpFile = deobfJarDir.resolve(deobfJarFilename + ".tmp");
 

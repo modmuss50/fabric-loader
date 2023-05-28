@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import net.fabricmc.api.EnvType;
@@ -47,6 +48,8 @@ import net.fabricmc.loader.impl.game.minecraft.patch.EntrypointPatch;
 import net.fabricmc.loader.impl.game.minecraft.patch.EntrypointPatchFML125;
 import net.fabricmc.loader.impl.game.patch.GameTransformer;
 import net.fabricmc.loader.impl.launch.FabricLauncher;
+import net.fabricmc.loader.impl.launch.DefaultMappingConfiguration;
+import net.fabricmc.loader.impl.launch.MappingConfiguration;
 import net.fabricmc.loader.impl.metadata.BuiltinModMetadata;
 import net.fabricmc.loader.impl.metadata.ModDependencyImpl;
 import net.fabricmc.loader.impl.util.Arguments;
@@ -84,6 +87,7 @@ public class MinecraftGameProvider implements GameProvider {
 	private Collection<Path> validParentClassPath; // computed parent class path restriction (loader+deps)
 	private McVersion versionData;
 	private boolean hasModLoader = false;
+	private MappingConfiguration mappingConfiguration = new DefaultMappingConfiguration();
 
 	private final GameTransformer transformer = new GameTransformer(
 			new EntrypointPatch(this),
@@ -294,6 +298,12 @@ public class MinecraftGameProvider implements GameProvider {
 		launcher.setValidParentClassPath(validParentClassPath);
 
 		if (isObfuscated()) {
+			if (!FabricLoaderImpl.INSTANCE.isDevelopmentEnvironment()
+					&& MojangMappingConfiguration.isAvailable()
+			) {
+				mappingConfiguration = MojangMappingConfiguration.create(mappingConfiguration, envType, getLaunchDirectory(), getRawGameVersion());
+			}
+
 			Map<String, Path> obfJars = new HashMap<>(3);
 			String[] names = new String[gameJars.size()];
 
@@ -319,7 +329,9 @@ public class MinecraftGameProvider implements GameProvider {
 			obfJars = GameProviderHelper.deobfuscate(obfJars,
 					getGameId(), getNormalizedGameVersion(),
 					getLaunchDirectory(),
-					launcher);
+					launcher,
+					getMappingConfiguration()
+			);
 
 			for (int i = 0; i < gameJars.size(); i++) {
 				Path newJar = obfJars.get(names[i]);
@@ -469,5 +481,10 @@ public class MinecraftGameProvider implements GameProvider {
 		} catch (Throwable t) {
 			throw FormattedException.ofLocalized("exception.minecraft.generic", t);
 		}
+	}
+
+	@Override
+	public MappingConfiguration getMappingConfiguration() {
+		return Objects.requireNonNull(mappingConfiguration, "Mapping configuration is not ready yet");
 	}
 }

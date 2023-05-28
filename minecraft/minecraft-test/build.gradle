@@ -111,8 +111,9 @@ task runProductionAutoTestClient(type: JavaExec, dependsOn: [loaderJarTask]) {
 		def mods = configurations.productionRuntimeMods.files.join(File.pathSeparator)
 
 		jvmArgs(
-			"-Dfabric.addMods=${mods}",
-			"-Dfabric.autoTest"
+//			"-Dfabric.addMods=${mods}",
+//			"-Dfabric.autoTest",
+			"-Dfabric.mojangMappingsUrl=https://piston-data.mojang.com/v1/objects/f14771b764f943c154d3a6fcb47694477e328148/client.txt"
 		)
 	}
 }

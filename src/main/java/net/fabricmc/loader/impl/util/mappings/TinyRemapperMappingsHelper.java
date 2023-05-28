@@ -42,10 +42,24 @@ public class TinyRemapperMappingsHelper {
 				acceptor.acceptClass(className, dstName);
 
 				for (MappingTree.FieldMapping field : classDef.getFields()) {
+					String name = field.getName(toId);
+
+					if (name == null) {
+						// TODO I think this is working around a mapping issue
+						continue;
+					}
+
 					acceptor.acceptField(memberOf(className, field.getName(fromId), field.getDesc(fromId)), field.getName(toId));
 				}
 
 				for (MappingTree.MethodMapping method : classDef.getMethods()) {
+					String name = method.getName(toId);
+
+					if (name == null) {
+						// TODO I think this is working around a mapping issue
+						continue;
+					}
+
 					IMappingProvider.Member methodIdentifier = memberOf(className, method.getName(fromId), method.getDesc(fromId));
 					acceptor.acceptMethod(methodIdentifier, method.getName(toId));
 				}

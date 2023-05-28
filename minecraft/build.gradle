@@ -16,6 +16,8 @@ dependencies {
 	// slf4j wrapper
 	compileOnly 'org.slf4j:slf4j-api:1.8.0-beta4'
 
+	compileOnly 'net.fabricmc:mapping-io:0.4.0'
+
 	// launchwrapper + dependencies
 	compileOnly ('net.minecraft:launchwrapper:1.12') {
 		transitive = false
