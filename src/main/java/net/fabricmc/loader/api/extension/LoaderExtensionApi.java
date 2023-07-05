@@ -16,15 +16,10 @@
 
 package net.fabricmc.loader.api.extension;
 
-import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
-
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.tree.ClassNode;
 
 import net.fabricmc.loader.api.metadata.ModDependency;
 import net.fabricmc.loader.api.metadata.ModMetadata;
@@ -48,16 +43,6 @@ public interface LoaderExtensionApi { // one instance per extension, binding the
 	// TODO: add a way to add virtual resources (name + content) and classes
 
 	void addMixinConfig(ModCandidate mod, String location);
-
-	void addClassByteBufferTransformer(ClassTransformer<ByteBuffer> transformer, String phase);
-	void addClassVisitorProvider(ClassTransformer<ClassVisitor> provider, String phase);
-	void addClassNodeTransformer(ClassTransformer<ClassNode> transformer, String phase);
-
-	interface ClassTransformer<T> {
-		String getName(); // name further identifying the transformer within the context mod
-		boolean appliesTo(String internalName, /*@Nullable*/ URL source);
-		/*@Nullable*/ T apply(String internalName, /*@Nullable*/ T input); // may reuse input!
-	}
 
 	// TODO: resource transformers
 }
