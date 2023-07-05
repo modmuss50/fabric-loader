@@ -226,12 +226,8 @@ tasks.build.dependsOn "copyJson"
 tasks.withType(JavaCompile).configureEach {
 	it.options.encoding = "UTF-8"
 
-	// The Minecraft launcher currently installs Java 8 for users, so your mod probably wants to target Java 8 too
-	// JDK 9 introduced a new way of specifying this that will make sure no newer classes or methods are used.
-	// We'll use that if it's available, but otherwise we'll use the older option.
-	if (JavaVersion.current().isJava9Compatible()) {
-		it.options.release = 8
-	}
+	// Use Java 17 for the tests
+	it.options.release = it.name.equals("compileTestJava") ? 17 : 8
 }
 
 javadoc {

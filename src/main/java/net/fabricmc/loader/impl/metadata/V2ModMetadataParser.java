@@ -443,6 +443,7 @@ final class V2ModMetadataParser {
 						default:
 							throw new ParseMetadataException("Dependency root metadata must be a string or object", reader);
 						}
+						break;
 					default:
 						if (readDependencyMetadata(reader, key, metaBuilder)) {
 							metaUsed = true;
