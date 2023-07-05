@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loader.api.Version;
 
 /**
@@ -203,7 +205,7 @@ public interface ModMetadata {
 	 * @param key the key
 	 * @return the custom value, or {@code null} if no such value is present
 	 */
-	/* @Nullable */
+	@Nullable
 	CustomValue getCustomValue(String key);
 
 	/**

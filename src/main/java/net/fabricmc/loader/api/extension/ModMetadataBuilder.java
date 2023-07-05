@@ -21,6 +21,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.util.Collection;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.metadata.ContactInformation;
@@ -46,29 +48,29 @@ public interface ModMetadataBuilder extends ModMetadata {
 	ModMetadataBuilder setVersion(String version) throws VersionParsingException;
 	ModMetadataBuilder setVersion(Version version);
 
-	ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive);
+	ModMetadataBuilder addProvidedMod(String modId, @Nullable Version version, boolean exclusive);
 
 	ModMetadataBuilder setEnvironment(ModEnvironment environment);
-	ModMetadataBuilder setLoadCondition(/* @Nullable */ ModLoadCondition loadCondition);
-	ModMetadataBuilder setLoadPhase(/* @Nullable */ String loadPhase);
+	ModMetadataBuilder setLoadCondition(@Nullable ModLoadCondition loadCondition);
+	ModMetadataBuilder setLoadPhase(@Nullable String loadPhase);
 
 	ModMetadataBuilder addEntrypoint(String key, String value);
-	ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter, /* @Nullable */ Expression condition);
+	ModMetadataBuilder addEntrypoint(String key, String value, @Nullable String adapter, @Nullable Expression condition);
 	ModMetadataBuilder addNestedMod(String location);
 	ModMetadataBuilder addMixinConfig(String location);
-	ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition);
+	ModMetadataBuilder addMixinConfig(String location, @Nullable ModEnvironment environment, @Nullable Expression condition);
 	ModMetadataBuilder addClassTweaker(String location);
-	ModMetadataBuilder addClassTweaker(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition);
+	ModMetadataBuilder addClassTweaker(String location, @Nullable ModEnvironment environment, @Nullable Expression condition);
 
 	ModMetadataBuilder addDependency(ModDependency dependenc);
 
 	ModMetadataBuilder setName(String name);
 	ModMetadataBuilder setDescription(String description);
-	ModMetadataBuilder addAuthor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addAuthor(String name, @Nullable ContactInformation contact);
 	ModMetadataBuilder addAuthor(Person person);
-	ModMetadataBuilder addContributor(String name, /* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder addContributor(String name, @Nullable ContactInformation contact);
 	ModMetadataBuilder addContributor(Person person);
-	ModMetadataBuilder setContact(/* @Nullable */ ContactInformation contact);
+	ModMetadataBuilder setContact(@Nullable ContactInformation contact);
 	ModMetadataBuilder addLicense(String name);
 	ModMetadataBuilder setIcon(String location);
 	ModMetadataBuilder addIcon(int size, String location);
@@ -99,10 +101,10 @@ public interface ModMetadataBuilder extends ModMetadata {
 		ModDependencyBuilder addVersions(Collection<VersionPredicate> predicates);
 		ModDependencyBuilder setEnvironment(ModEnvironment environment);
 		ModDependencyBuilder setInferEnvironment(boolean value);
-		ModDependencyBuilder setCondition(/* @Nullable */ Expression condition);
-		ModDependencyBuilder setReason(/* @Nullable */ String reason);
-		ModDependencyBuilder setMetadata(/* @Nullable */ ModDependency.Metadata metadata);
-		ModDependencyBuilder setRootMetadata(/* @Nullable */ ModDependency.Metadata metadata);
+		ModDependencyBuilder setCondition(@Nullable Expression condition);
+		ModDependencyBuilder setReason(@Nullable String reason);
+		ModDependencyBuilder setMetadata(@Nullable ModDependency.Metadata metadata);
+		ModDependencyBuilder setRootMetadata(@Nullable ModDependency.Metadata metadata);
 
 		ModDependency build();
 	}
@@ -112,10 +114,10 @@ public interface ModMetadataBuilder extends ModMetadata {
 			return new ModDependencyMetadataBuilderImpl();
 		}
 
-		ModDependencyMetadataBuilder setModId(/* @Nullable */ String modId);
-		ModDependencyMetadataBuilder setName(/* @Nullable */ String name);
-		ModDependencyMetadataBuilder setDescription(/* @Nullable */ String description);
-		ModDependencyMetadataBuilder setContact(/* @Nullable */ ContactInformation contact);
+		ModDependencyMetadataBuilder setModId(@Nullable String modId);
+		ModDependencyMetadataBuilder setName(@Nullable String name);
+		ModDependencyMetadataBuilder setDescription(@Nullable String description);
+		ModDependencyMetadataBuilder setContact(@Nullable ContactInformation contact);
 
 		ModDependency.Metadata build();
 	}

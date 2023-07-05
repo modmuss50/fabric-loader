@@ -16,6 +16,8 @@
 
 package net.fabricmc.loader.impl.metadata;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loader.impl.lib.gson.JsonReader;
 
 final class ParseWarning {
@@ -28,7 +30,7 @@ final class ParseWarning {
 		this(reader, key, null);
 	}
 
-	ParseWarning(JsonReader reader, String key, /* @Nullable */ String reason) {
+	ParseWarning(JsonReader reader, String key, @Nullable String reason) {
 		this.line = reader.getLineNumber();
 		this.column = reader.getColumn();
 		this.key = key;

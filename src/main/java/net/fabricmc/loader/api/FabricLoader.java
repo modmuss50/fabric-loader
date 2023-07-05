@@ -22,6 +22,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
@@ -180,7 +182,7 @@ public interface FabricLoader {
 	 * @return A client or server instance object
 	 * @deprecated This method is experimental and its use is discouraged.
 	 */
-	/* @Nullable */
+	@Nullable
 	@Deprecated
 	Object getGameInstance();
 

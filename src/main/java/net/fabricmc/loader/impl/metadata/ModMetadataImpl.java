@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ContactInformation;
@@ -61,7 +63,7 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private Collection<ModDependencyImpl> dependencies;
 
 	// Optional (metadata)
-	/* @Nullable */
+	@Nullable
 	private final String name;
 	private final String description;
 	private final Collection<Person> authors;
@@ -80,16 +82,16 @@ final class ModMetadataImpl extends AbstractModMetadata implements LoaderModMeta
 	private final Collection<String> oldInitializers;
 
 	ModMetadataImpl(int schemaVersion,
-			String id, Version version, Collection<ProvidedModImpl> providedMods,
-			ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
-			Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
-			Collection<ConditionalConfigEntry> mixins, Collection<ConditionalConfigEntry> classTweakers,
-			Collection<ModDependencyImpl> dependencies,
-			/* @Nullable */ String name, /* @Nullable */String description,
-			Collection<Person> authors, Collection<Person> contributors, /* @Nullable */ContactInformation contact, Collection<String> license, IconEntry icon,
-			Map<String, String> languageAdapters,
-			Map<String, CustomValue> customValues,
-			Collection<String> oldInitializers) {
+					String id, Version version, Collection<ProvidedModImpl> providedMods,
+					ModEnvironment environment, ModLoadCondition loadCondition, String loadPhase,
+					Map<String, List<EntrypointMetadata>> entrypoints, Collection<NestedJarEntry> jars,
+					Collection<ConditionalConfigEntry> mixins, Collection<ConditionalConfigEntry> classTweakers,
+					Collection<ModDependencyImpl> dependencies,
+					@Nullable String name, @Nullable String description,
+					Collection<Person> authors, Collection<Person> contributors, @Nullable ContactInformation contact, Collection<String> license, IconEntry icon,
+					Map<String, String> languageAdapters,
+					Map<String, CustomValue> customValues,
+					Collection<String> oldInitializers) {
 		this.schemaVersion = schemaVersion;
 		this.id = id;
 		this.version = version;

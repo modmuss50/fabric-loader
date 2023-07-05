@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loader.api.extension.LoaderExtensionApi;
 import net.fabricmc.loader.api.extension.ModCandidate;
 import net.fabricmc.loader.api.metadata.ModDependency;
@@ -63,14 +65,14 @@ public final class LoaderExtensionApiImpl implements LoaderExtensionApi {
 	}
 
 	@Override
-	public ModCandidate readMod(Path path, /*@Nullable*/ String namespace) {
+	public ModCandidate readMod(Path path, @Nullable String namespace) {
 		Objects.requireNonNull(path, "null path");
 
 		return readMod(Collections.singletonList(path), namespace);
 	}
 
 	@Override
-	public ModCandidate readMod(List<Path> paths, /*@Nullable*/ String namespace) {
+	public ModCandidate readMod(List<Path> paths, @Nullable String namespace) {
 		checkFrozen();
 		if (paths.isEmpty()) throw new IllegalArgumentException("empty paths");
 

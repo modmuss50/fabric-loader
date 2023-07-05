@@ -32,6 +32,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.extension.ModMetadataBuilder;
@@ -145,7 +147,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addProvidedMod(String modId, /* @Nullable */ Version version, boolean exclusive) {
+	public ModMetadataBuilder addProvidedMod(String modId, @Nullable Version version, boolean exclusive) {
 		Objects.requireNonNull(modId, "null modId");
 
 		boolean hasOwnVersion = version != null;
@@ -174,14 +176,14 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder setLoadCondition(/* @Nullable */ ModLoadCondition loadCondition) {
+	public ModMetadataBuilder setLoadCondition(@Nullable ModLoadCondition loadCondition) {
 		this.loadCondition = loadCondition;
 
 		return this;
 	}
 
 	@Override
-	public ModMetadataBuilder setLoadPhase(/* @Nullable */ String loadPhase) {
+	public ModMetadataBuilder setLoadPhase(@Nullable String loadPhase) {
 		if (loadPhase == null) loadPhase = LoadPhases.DEFAULT;
 
 		this.loadPhase = loadPhase;
@@ -195,7 +197,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addEntrypoint(String key, String value, /* @Nullable */ String adapter, /* @Nullable */ Expression condition) {
+	public ModMetadataBuilder addEntrypoint(String key, String value, @Nullable String adapter, @Nullable Expression condition) {
 		Objects.requireNonNull(key, "null key");
 		Objects.requireNonNull(value, "null value");
 
@@ -228,7 +230,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addMixinConfig(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition) {
+	public ModMetadataBuilder addMixinConfig(String location, @Nullable ModEnvironment environment, @Nullable Expression condition) {
 		Objects.requireNonNull(location, "null location");
 
 		mixins.add(new ConditionalConfigEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL, condition));
@@ -242,7 +244,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addClassTweaker(String location, /* @Nullable */ ModEnvironment environment, /* @Nullable */ Expression condition) {
+	public ModMetadataBuilder addClassTweaker(String location, @Nullable ModEnvironment environment, @Nullable Expression condition) {
 		Objects.requireNonNull(location, "null location");
 
 		classTweakers.add(new ConditionalConfigEntry(location, environment != null ? environment : ModEnvironment.UNIVERSAL, condition));
@@ -295,7 +297,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addAuthor(String name, /* @Nullable */ ContactInformation contact) {
+	public ModMetadataBuilder addAuthor(String name, @Nullable ContactInformation contact) {
 		return addAuthor(createPerson(name, contact));
 	}
 
@@ -314,7 +316,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder addContributor(String name, /* @Nullable */ ContactInformation contact) {
+	public ModMetadataBuilder addContributor(String name, @Nullable ContactInformation contact) {
 		return addContributor(createPerson(name, contact));
 	}
 
@@ -327,7 +329,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		return this;
 	}
 
-	private static Person createPerson(String name, /* @Nullable */ ContactInformation contact) {
+	private static Person createPerson(String name, @Nullable ContactInformation contact) {
 		Objects.requireNonNull(name, "null name");
 
 		if (contact != null
@@ -345,7 +347,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 	}
 
 	@Override
-	public ModMetadataBuilder setContact(/* @Nullable */ ContactInformation contact) {
+	public ModMetadataBuilder setContact(@Nullable ContactInformation contact) {
 		this.contact = contact;
 
 		return this;
@@ -558,21 +560,21 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		}
 
 		@Override
-		public ModDependencyBuilder setCondition(/* @Nullable */ Expression condition) {
+		public ModDependencyBuilder setCondition(@Nullable Expression condition) {
 			this.condition = condition;
 
 			return this;
 		}
 
 		@Override
-		public ModDependencyBuilder setReason(/* @Nullable */ String reason) {
+		public ModDependencyBuilder setReason(@Nullable String reason) {
 			this.reason = reason;
 
 			return this;
 		}
 
 		@Override
-		public ModDependencyBuilder setMetadata(/* @Nullable */ ModDependency.Metadata metadata) {
+		public ModDependencyBuilder setMetadata(@Nullable ModDependency.Metadata metadata) {
 			if (metadata != null && metadata.getClass() != ModDependencyImpl.Metadata.class) throw new IllegalArgumentException("invalid metadata class "+metadata.getClass().getName());
 
 			this.metadata = metadata;
@@ -581,7 +583,7 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		}
 
 		@Override
-		public ModDependencyBuilder setRootMetadata(/* @Nullable */ ModDependency.Metadata metadata) {
+		public ModDependencyBuilder setRootMetadata(@Nullable ModDependency.Metadata metadata) {
 			if (metadata != null && metadata.getClass() != ModDependencyImpl.Metadata.class) throw new IllegalArgumentException("invalid metadata class "+metadata.getClass().getName());
 
 			this.rootMetadata = metadata;
@@ -608,28 +610,28 @@ public final class ModMetadataBuilderImpl implements ModMetadataBuilder {
 		private ContactInformation contact;
 
 		@Override
-		public ModDependencyMetadataBuilder setModId(/* @Nullable */ String modId) {
+		public ModDependencyMetadataBuilder setModId(@Nullable String modId) {
 			this.modId = modId;
 
 			return this;
 		}
 
 		@Override
-		public ModDependencyMetadataBuilder setName(/* @Nullable */ String name) {
+		public ModDependencyMetadataBuilder setName(@Nullable String name) {
 			this.name = name;
 
 			return this;
 		}
 
 		@Override
-		public ModDependencyMetadataBuilder setDescription(/* @Nullable */ String description) {
+		public ModDependencyMetadataBuilder setDescription(@Nullable String description) {
 			this.description = description;
 
 			return this;
 		}
 
 		@Override
-		public ModDependencyMetadataBuilder setContact(/* @Nullable */ ContactInformation contact) {
+		public ModDependencyMetadataBuilder setContact(@Nullable ContactInformation contact) {
 			this.contact = contact;
 
 			return this;
