@@ -41,6 +41,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
@@ -56,20 +57,28 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTree;
+import javax.swing.LookAndFeel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
+import javax.swing.UIDefaults;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.themes.FlatMacDarkLaf;
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
+
 import net.fabricmc.loader.impl.gui.FabricStatusTree.FabricBasicButtonType;
 import net.fabricmc.loader.impl.gui.FabricStatusTree.FabricStatusButton;
 import net.fabricmc.loader.impl.gui.FabricStatusTree.FabricStatusNode;
 import net.fabricmc.loader.impl.gui.FabricStatusTree.FabricStatusTab;
 import net.fabricmc.loader.impl.gui.FabricStatusTree.FabricTreeWarningLevel;
+import net.fabricmc.loader.impl.gui.theme.ThemeProvider;
 import net.fabricmc.loader.impl.util.StringUtil;
 
 class FabricMainWindow {
@@ -84,8 +93,103 @@ class FabricMainWindow {
 		System.setProperty("apple.awt.application.appearance", "system");
 		System.setProperty("apple.awt.application.name", tree.title);
 
-		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		setupLookAndFeel();
+
 		open0(tree, shouldWait);
+	}
+
+	private static void setupLookAndFeel() {
+		ClassLoader oldContextClassLoader = Thread.currentThread().getContextClassLoader();
+
+		try {
+			LookAndFeel lookAndFeel = createFlatLookAndFeel();
+			ClassLoader flatLafClassLoader = lookAndFeel.getClass().getClassLoader();
+
+			Thread.currentThread().setContextClassLoader(flatLafClassLoader);
+			UIManager.setLookAndFeel(lookAndFeel);
+			setUiDefaultsClassLoader(flatLafClassLoader);
+
+			if (!isLookAndFeelUsable()) {
+				throw new IllegalStateException("FlatLaf did not install complete Swing UI defaults");
+			}
+		} catch (Throwable t) {
+			setupFallbackLookAndFeel(oldContextClassLoader);
+		} finally {
+			Thread.currentThread().setContextClassLoader(oldContextClassLoader);
+		}
+	}
+
+	private static void setupFallbackLookAndFeel(ClassLoader contextClassLoader) {
+		try {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+
+			if (!isLookAndFeelUsable()) {
+				UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+			}
+		} catch (Throwable ignored) {
+			try {
+				UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+			} catch (Throwable ignoredAgain) {
+				// Swing will report the original problem when creating components.
+			}
+		}
+	}
+
+	private static LookAndFeel createFlatLookAndFeel() {
+		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+		boolean macOS = osName.contains("mac") || osName.contains("darwin");
+		String darkModeProperty = System.getProperty("fabric.loader.gui.darkMode");
+		boolean darkMode = darkModeProperty != null ? Boolean.parseBoolean(darkModeProperty) : ThemeProvider.getTheme().equals("dark");
+
+		if (macOS) {
+			return darkMode ? new FlatMacDarkLaf() : new FlatMacLightLaf();
+		}
+
+		return darkMode ? new FlatDarkLaf() : new FlatLightLaf();
+	}
+
+	private static void setUiDefaultsClassLoader(ClassLoader classLoader) {
+		UIDefaults defaults = UIManager.getDefaults();
+
+		if (defaults != null && classLoader != null) {
+			defaults.put("ClassLoader", classLoader);
+		}
+	}
+
+	private static boolean isLookAndFeelUsable() {
+		UIDefaults defaults = UIManager.getDefaults();
+		return defaults != null
+				&& canLoadUiDelegate(defaults, "PanelUI")
+				&& canLoadUiDelegate(defaults, "LabelUI")
+				&& canLoadUiDelegate(defaults, "ButtonUI")
+				&& canLoadUiDelegate(defaults, "RootPaneUI")
+				&& UIManager.getFont("Label.font") != null;
+	}
+
+	private static boolean canLoadUiDelegate(UIDefaults defaults, String key) {
+		Object value = defaults.get(key);
+
+		if (value == null) {
+			return false;
+		}
+
+		if (!(value instanceof String)) {
+			return true;
+		}
+
+		ClassLoader classLoader = (ClassLoader) defaults.get("ClassLoader");
+
+		if (classLoader == null) {
+			classLoader = Thread.currentThread().getContextClassLoader();
+		}
+
+		try {
+			Class.forName((String) value, false, classLoader);
+			return true;
+		} catch (ClassNotFoundException e) {
+			return false;
+		}
 	}
 
 	private static void open0(FabricStatusTree tree, boolean shouldWait) throws Exception {

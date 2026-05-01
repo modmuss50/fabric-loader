@@ -16,11 +16,13 @@
 
 package net.fabricmc.loader.impl.gui.theme;
 
+import java.util.Locale;
+
 public class ThemeProvider {
 	// Returns either "light" or "dark"
 	public static String getTheme() {
 		try {
-			String os = System.getProperty("os.name").toLowerCase();
+			String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 
 			if (os.contains("win")) {
 				return new WindowsThemeProvider().getTheme();
